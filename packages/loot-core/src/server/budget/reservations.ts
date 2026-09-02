@@ -54,10 +54,15 @@ export type CategoryReservations = {
  * saved is the rate times the months left, so everything else is owed already.
  * Expressing it this way reuses the engine's own contribution rate rather than
  * reimplementing period arithmetic, so the two cannot disagree.
+ *
+ * Rounded to whole cents. `monthlyRate` is a division, so leaving it unrounded
+ * lets a float reach the spreadsheet, which rejects non-integers.
  */
 export function accruedToDate(claim: ReservationClaim): number {
   const remaining = claim.monthlyRate * claim.monthsRemaining;
-  return Math.min(claim.target, Math.max(0, claim.target - remaining));
+  return Math.round(
+    Math.min(claim.target, Math.max(0, claim.target - remaining)),
+  );
 }
 
 /**

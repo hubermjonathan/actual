@@ -20,6 +20,7 @@ import { BudgetCategories } from './BudgetCategories';
 import { BudgetSummaries } from './BudgetSummaries';
 import { BudgetTotals } from './BudgetTotals';
 import { MonthsProvider } from './MonthsContext';
+import { ReservationsProvider } from './ReservationsContext';
 import type { MonthBounds } from './MonthsContext';
 import {
   findSortDown,
@@ -289,6 +290,7 @@ export function BudgetTable(props: BudgetTableProps) {
         monthBounds={monthBounds}
         type={type}
       >
+       <ReservationsProvider>
         <BudgetTotals
           toggleHiddenCategories={toggleHiddenCategories}
           expandAllCategories={expandAllCategories}
@@ -331,6 +333,7 @@ export function BudgetTable(props: BudgetTableProps) {
             </SchedulesProvider>
           </View>
         </View>
+       </ReservationsProvider>
       </MonthsProvider>
     </View>
   );
