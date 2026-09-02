@@ -2,6 +2,7 @@
 
 import * as db from '#server/db';
 import { collectFormulasFromActions } from '#server/rules/balanceOfFormula';
+import { fromDateRepr } from '#server/models';
 import { getRuleForSchedule } from '#server/schedules/app';
 import { prefetchBalanceOfForTransaction } from '#server/transactions/transaction-rules';
 import type { Currency } from '#shared/currencies';
@@ -16,9 +17,11 @@ import type { CategoryEntity, TransactionEntity } from '#types/models';
 import type { ScheduleTemplate, Template } from '#types/models/templates';
 
 import { getSheetValue, isTrackingBudget } from './actions';
+import type { ReservationClaim } from './reservations';
 
 type ScheduleTemplateTarget = {
   template: ScheduleTemplate;
+  scheduleId: string;
   name: string;
   target: number;
   next_date_string: string;
@@ -149,6 +152,7 @@ async function createScheduleList(
     } else {
       t.push({
         template,
+        scheduleId: sid,
         target,
         next_date_string,
         target_interval,
@@ -310,6 +314,67 @@ function getSinkingTotal(t: ScheduleTemplateTarget[]) {
     total += schedule.target;
   }
   return total;
+}
+
+/**
+ * Build the reservation claims a category's schedule templates imply.
+ *
+ * Reuses `createScheduleList` and `getMonthlyBaseContribution` so a claim's
+ * accrual rate is by construction the same rate the budget contributes each
+ * month — the two cannot drift apart.
+ *
+ * Claims funded in full in their due month (`#template schedule full X`, and
+ * anything the engine treats that way) accrue all-or-nothing rather than pro
+ * rata, which their rate of `target` per month expresses directly.
+ */
+export async function getScheduleReservationClaims(
+  template_lines: Template[],
+  current_month: string,
+  category: CategoryEntity,
+  currency: Currency,
+): Promise<{ claims: ReservationClaim[]; errors: string[] }> {
+  const scheduleTemplates = template_lines.filter(t => t.type === 'schedule');
+  const { t, errors } = await createScheduleList(
+    scheduleTemplates,
+    current_month,
+    category,
+    currency,
+  );
+
+  // `createScheduleList` resolves the occurrence relevant to the budget month,
+  // which is right for budgeting: September still has to fund September's bill.
+  // Reservations ask a different question — what does this balance still owe —
+  // so they read the schedule's stored `next_date`, which moves forward once a
+  // bill is paid. Without this, a claim settled earlier in the month keeps
+  // reserving against a balance it has already been drawn from.
+  const claims: ReservationClaim[] = [];
+  for (const c of t) {
+    if (c.completed !== 0) continue;
+
+    const stored = await db.first<
+      Pick<db.DbScheduleNextDate, 'local_next_date'>
+    >('SELECT local_next_date FROM schedules_next_date WHERE schedule_id = ?', [
+      c.scheduleId,
+    ]);
+    const nextDate =
+      stored?.local_next_date != null
+        ? fromDateRepr(stored.local_next_date)
+        : c.next_date_string;
+    const monthsRemaining = monthUtils.differenceInCalendarMonths(
+      nextDate,
+      current_month,
+    );
+
+    claims.push({
+      name: c.name,
+      target: c.target,
+      nextDate,
+      monthlyRate: c.full ? c.target : getMonthlyBaseContribution(c),
+      monthsRemaining: Math.max(0, monthsRemaining),
+    });
+  }
+
+  return { claims, errors };
 }
 
 export async function runSchedule(
