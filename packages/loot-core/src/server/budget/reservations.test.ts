@@ -44,6 +44,12 @@ describe('accruedToDate', () => {
     );
   });
 
+  it('always returns whole cents', () => {
+    // 1,053.00 over 6 months does not divide evenly.
+    const c = claim('BMW Insurance', 105300, 6, 4, '2027-01-01');
+    expect(Number.isInteger(accruedToDate(c))).toBe(true);
+  });
+
   it('handles a semiannual period', () => {
     // BMW Insurance: 1,053.00 every 6 months, due in 3.
     expect(
@@ -57,8 +63,9 @@ describe('settleReservations', () => {
     const claims = [claim('Amex Plat AF', 89500, 12, 4, '2026-12-01')];
     const r = settleReservations(100000, claims);
 
-    expect(r.reserved).toBeCloseTo(89500 * (8 / 12), 6); // 8 of 12 months elapsed
-    expect(r.available).toBeCloseTo(100000 - r.reserved, 6);
+    expect(r.reserved).toBe(Math.round(89500 * (8 / 12))); // 8 of 12 elapsed
+    expect(Number.isInteger(r.reserved)).toBe(true);
+    expect(r.available).toBe(100000 - r.reserved);
     expect(r.claims[0].onTrack).toBe(true);
     expect(r.shortfall).toBe(0);
   });
@@ -121,7 +128,9 @@ describe('settleReservations', () => {
     ];
     for (const balance of [0, 1000, 148391, 500000, -2500]) {
       const r = settleReservations(balance, claims);
-      expect(r.reserved + r.available).toBeCloseTo(balance, 6);
+      expect(r.reserved + r.available).toBe(balance);
+      expect(Number.isInteger(r.reserved)).toBe(true);
+      expect(Number.isInteger(r.available)).toBe(true);
     }
   });
 });

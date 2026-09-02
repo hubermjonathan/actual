@@ -1,4 +1,4 @@
-import React, { memo, useRef, useState } from 'react';
+import React, { memo, useMemo, useRef, useState } from 'react';
 import type { ComponentProps, CSSProperties, MouseEvent } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -22,6 +22,10 @@ import { NotesButton } from '#components/NotesButton';
 import { CellValue, CellValueText } from '#components/spreadsheet/CellValue';
 import { Field, Row, SheetCell } from '#components/table';
 import type { SheetCellProps } from '#components/table';
+import {
+  useCategoryReservations,
+  useReservedTotal,
+} from '#components/budget/ReservationsContext';
 import { useCategoryScheduleGoalTemplateIndicator } from '#hooks/useCategoryScheduleGoalTemplateIndicator';
 import { useFormat } from '#hooks/useFormat';
 import { useNavigate } from '#hooks/useNavigate';
@@ -108,6 +112,11 @@ export const BudgetTotalsMonth = memo(function BudgetTotalsMonth() {
       </View>
       <View style={headerLabelStyle}>
         <Text style={{ color: theme.tableHeaderText }}>
+          <Trans>Reserved</Trans>
+        </Text>
+      </View>
+      <View style={headerLabelStyle}>
+        <Text style={{ color: theme.tableHeaderText }}>
           <Trans>Balance</Trans>
         </Text>
         <EnvelopeCellValue
@@ -117,6 +126,7 @@ export const BudgetTotalsMonth = memo(function BudgetTotalsMonth() {
           {props => <CellValueText {...props} style={cellStyle} />}
         </EnvelopeCellValue>
       </View>
+
     </View>
   );
 });
@@ -174,20 +184,8 @@ export const ExpenseGroupMonth = memo(function ExpenseGroupMonth({
           type: 'financial',
         }}
       />
-      <EnvelopeSheetCell
-        name="balance"
-        width="flex"
-        textAlign="right"
-        style={{
-          fontWeight: 600,
-          paddingRight: styles.monthRightPadding,
-          ...styles.tnum,
-        }}
-        valueProps={{
-          binding: envelopeBudget.groupBalance(id),
-          type: 'financial',
-        }}
-      />
+      <GroupReserved group={group} month={month} />
+      <GroupBalanceLessReserved group={group} month={month} />
     </View>
   );
 });
@@ -250,6 +248,7 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
 
   const navigate = useNavigate();
 
+  const reservations = useCategoryReservations(month, category.id);
   const { schedule, scheduleStatus, isScheduleRecurring, description } =
     useCategoryScheduleGoalTemplateIndicator({
       category,
@@ -489,6 +488,7 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
           </EnvelopeCellValue>
         </View>
       </Field>
+      <ReservedCell reserved={reservations?.reserved ?? 0} />
       <Field
         ref={balanceMenuTriggerRef}
         name="balance"
@@ -523,6 +523,7 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
             goal={envelopeBudget.catGoal(category.id)}
             budgeted={envelopeBudget.catBudgeted(category.id)}
             longGoal={envelopeBudget.catLongGoal(category.id)}
+            reserved={reservations?.reserved ?? 0}
             tooltipDisabled={balanceMenuOpen}
           />
         </Button>
@@ -542,6 +543,7 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
           <BalanceMovementMenu
             categoryId={category.id}
             month={month}
+            reserved={reservations?.reserved ?? 0}
             onBudgetAction={onBudgetAction}
             onClose={() => setBalanceMenuOpen(false)}
           />
@@ -550,6 +552,94 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
     </View>
   );
 });
+
+type GroupBalanceProps = {
+  group: CategoryGroupMonthProps['group'];
+  month: string;
+};
+
+/**
+ * Group balance with its reservations taken out, so a group row sums the same
+ * figures its category rows show.
+ */
+function GroupBalanceLessReserved({ group, month }: GroupBalanceProps) {
+  const format = useFormat();
+  const balance = useEnvelopeSheetValue(
+    envelopeBudget.groupBalance(group.id),
+  );
+  const categoryIds = useMemo(
+    () => (group.categories ?? []).map(c => c.id),
+    [group.categories],
+  );
+  const reserved = useReservedTotal(month, categoryIds) ?? 0;
+
+  return (
+    <Field
+      name="balance"
+      width="flex"
+      style={{
+        fontWeight: 600,
+        paddingRight: styles.monthRightPadding,
+        textAlign: 'right',
+      }}
+    >
+      <Text style={{ ...styles.tnum, fontWeight: 600 }}>
+        {format((balance ?? 0) - reserved, 'financial')}
+      </Text>
+    </Field>
+  );
+}
+
+type GroupReservedProps = {
+  group: CategoryGroupMonthProps['group'];
+  month: string;
+};
+
+/** A group's reserved total is the sum of its categories' reservations. */
+function GroupReserved({ group, month }: GroupReservedProps) {
+  const format = useFormat();
+  const categoryIds = useMemo(
+    () => (group.categories ?? []).map(c => c.id),
+    [group.categories],
+  );
+  const total = useReservedTotal(month, categoryIds);
+
+  return (
+    <Field name="reserved" width="flex" style={{ textAlign: 'right' }}>
+      <Text
+        style={{
+          ...styles.tnum,
+          fontWeight: 600,
+          color: theme.tableTextSubdued,
+        }}
+      >
+        {format(total ?? 0, 'financial')}
+      </Text>
+    </Field>
+  );
+}
+
+type ReservedCellProps = {
+  reserved: number;
+};
+
+/**
+ * What this category's balance already owes to known future costs.
+ *
+ * Blank when nothing is reserved: most categories have no claims, and a column
+ * of zeroes would bury the rows where the figure matters.
+ */
+function ReservedCell({ reserved }: ReservedCellProps) {
+  const format = useFormat();
+
+  return (
+    <Field name="reserved" width="flex" style={{ textAlign: 'right' }}>
+      <Text style={{ ...styles.tnum, color: theme.tableTextSubdued }}>
+        {format(reserved, 'financial')}
+      </Text>
+    </Field>
+  );
+}
 
 type IncomeGroupMonthProps = {
   month: string;

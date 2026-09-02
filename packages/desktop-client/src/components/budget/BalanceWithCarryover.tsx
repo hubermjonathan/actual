@@ -93,6 +93,11 @@ type BalanceWithCarryoverProps = Omit<
   longGoal: Binding<'envelope-budget' | 'tracking-budget', 'long-goal'>;
   isDisabled?: boolean;
   shouldInlineGoalStatus?: boolean;
+  /**
+   * Amount of the balance already claimed by known future costs. When set, the
+   * cell shows what is left after it — the figure you can actually spend.
+   */
+  reserved?: number;
   CarryoverIndicator?: ComponentType<CarryoverIndicatorProps>;
   tooltipDisabled?: boolean;
 };
@@ -105,6 +110,7 @@ export function BalanceWithCarryover({
   longGoal,
   isDisabled,
   shouldInlineGoalStatus,
+  reserved = 0,
   CarryoverIndicator: CarryoverIndicatorComponent = CarryoverIndicator,
   tooltipDisabled,
   children,
@@ -244,7 +250,11 @@ export function BalanceWithCarryover({
 
   return (
     <CellValue binding={balance} type="financial" {...props}>
-      {({ type, name, value: balanceValue }) => (
+      {({ type, name, value: rawBalance }) => {
+        // Goal colouring and the carryover indicator still read the true
+        // balance; only the displayed figure has reservations taken out.
+        const balanceValue = rawBalance - reserved;
+        return (
         <>
           <Tooltip
             content={
@@ -300,7 +310,8 @@ export function BalanceWithCarryover({
               </>
             )}
         </>
-      )}
+        );
+      }}
     </CellValue>
   );
 }
