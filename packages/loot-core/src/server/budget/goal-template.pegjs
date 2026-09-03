@@ -19,7 +19,7 @@ expr
   / template: template _ limit: limit
     { return { type: 'simple', monthly: null, limit, priority: template.priority, directive: template.directive }}
   / template: template _ schedule:schedule _ full:full? name:rawScheduleName modifiers:modifiers?
-    { return { type: 'schedule', name: name.trim(), priority: template.priority, directive: template.directive, full, adjustment: modifiers?.adjustment, adjustmentType: modifiers?.adjustmentType  }}
+    { return { type: 'schedule', name: name.trim(), priority: template.priority, directive: template.directive, full, fixed: modifiers?.fixed, adjustment: modifiers?.adjustment, adjustmentType: modifiers?.adjustmentType  }}
   / template: template _ remainder: remainder limit: limit?
     { return { type: 'remainder', priority: null, directive: template.directive, weight: remainder, limit }}
   / template: template _ 'average'i _ amount: positive _ 'months'i? modifiers:modifiers?
@@ -35,6 +35,7 @@ modifier
       const multiplier = op.toLowerCase() === 'increase' ? 1 : -1;
       return { adjustment: multiplier * +value.value, adjustmentType: value.type }
     }
+  / 'fixed'i { return { fixed: true } }
 
 percentOrNumber
   = value:$(d+ ('.' (d+)?)?) _? '%' { return { value: value, type: 'percent' } }
@@ -95,13 +96,13 @@ day 'day' = $(d d)
 date = $(month '-' day)
 currencySymbol 'currency symbol' = symbol: . & { return /\p{Sc}/u.test(symbol) }
 
-// Match schedule name including spaces and brackets, but stop before percentage modifiers
+// Match schedule name including spaces and brackets, but stop before modifiers
 rawScheduleName = $(
   (
-    !('['('increase'i/'decrease'i)) // Don't start with [increase/decrease
+    !('['('increase'i/'decrease'i/'fixed'i)) // Don't start with a modifier
     [^ \t\r\n]                     // First character can't be whitespace
     (
-      !(_ '['('increase'i/'decrease'i)) // Don't match if followed by [increase/decrease modifier
+      !(_ '['('increase'i/'decrease'i/'fixed'i)) // Don't match if followed by a modifier
       [^\r\n]                       // Any character except newlines
     )*
   )

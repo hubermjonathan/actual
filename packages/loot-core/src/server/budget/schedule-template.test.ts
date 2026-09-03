@@ -689,4 +689,117 @@ describe('runSchedule', () => {
     );
     expect(result.to_budget).toBe(0);
   });
+
+  it('contributes the same amount each month when marked fixed', async () => {
+    // 1,200.00 a year is 100.00 a month regardless of what has been saved.
+    const template_lines = [
+      {
+        type: 'schedule',
+        name: 'Test Schedule',
+        fixed: true,
+        priority: 0,
+        directive: 'template',
+      } as const,
+    ];
+    mockSingleSchedule({
+      start: '2024-08-01',
+      amount: -120000,
+      frequency: 'yearly',
+    });
+
+    const result = await runSchedule(
+      template_lines,
+      '2024-09-01',
+      0,
+      0,
+      0,
+      0,
+      [],
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(result.to_budget).toBe(10000);
+  });
+
+  it('still contributes the fixed amount when the balance already covers it', async () => {
+    // Without [fixed] a balance this size makes the pooled allocator contribute
+    // nothing; a fixed claim keeps to its schedule.
+    const template_lines = [
+      {
+        type: 'schedule',
+        name: 'Test Schedule',
+        fixed: true,
+        priority: 0,
+        directive: 'template',
+      } as const,
+    ];
+    mockSingleSchedule({
+      start: '2024-08-01',
+      amount: -120000,
+      frequency: 'yearly',
+    });
+
+    const result = await runSchedule(
+      template_lines,
+      '2024-09-01',
+      120000,
+      0,
+      120000,
+      0,
+      [],
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(result.to_budget).toBe(10000);
+  });
+
+  it('differs from the pooled behaviour when partly saved', async () => {
+    // 1,200.00 due in 11 months with 600.00 already saved.
+    //   pooled: spreads the remaining 600.00 over 12 months -> 50.00
+    //   fixed:  keeps to 1,200.00 / 12                      -> 100.00
+    const schedule = {
+      start: '2024-08-01',
+      amount: -120000,
+      frequency: 'yearly' as const,
+    };
+    const runWith = (lines: Parameters<typeof runSchedule>[0]) =>
+      runSchedule(
+        lines,
+        '2024-09-01',
+        60000,
+        0,
+        60000,
+        0,
+        [],
+        defaultCategory,
+        defaultCurrency,
+      );
+
+    mockSingleSchedule(schedule);
+    const pooled = await runWith([
+      {
+        type: 'schedule',
+        name: 'Test Schedule',
+        priority: 0,
+        directive: 'template',
+      },
+    ]);
+
+    mockSingleSchedule(schedule);
+    const fixed = await runWith([
+      {
+        type: 'schedule',
+        name: 'Test Schedule',
+        fixed: true,
+        priority: 0,
+        directive: 'template',
+      },
+    ]);
+
+    expect(pooled.to_budget).toBe(5000);
+    expect(fixed.to_budget).toBe(10000);
+  });
+
 });
