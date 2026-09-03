@@ -207,6 +207,19 @@ Below is examples of these different variations of simple templates.
 | `#template up to 5 per day`                        | Budget up to 5 per day that month, and remove extra funds       | Setting a daily coffee budget                                               |
 | `#template up to 100 per week starting 2024-10-07` | Budget 100 per week starting on Mondays, and remove extra funds | Setting a weekly grocery budget                                             |
 
+#### Labels
+
+A simple template can say what the amount is for.
+The label is annotation only — it does not change how much is budgeted.
+
+| Syntax                       | Budgeted Amount |
+| ---------------------------- | :-------------: |
+| `#template 1000 [groceries]` |     $ 1000      |
+
+This is useful when a category holds several amounts, so each one is named
+rather than sitting behind a comment line.
+Labels also name the allowance in [Reservations](./reservations.md).
+
 ### By Type
 
 The **By** type of template is for saving up funds _by_ a certain month.

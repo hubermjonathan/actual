@@ -34,17 +34,35 @@ export type SettledClaim = ReservationClaim & {
   onTrack: boolean;
 };
 
+/** What an allowance sets aside for this month, e.g. `#template 1000 [groceries]`. */
+export type Allowance = {
+  label: string;
+  amount: number;
+};
+
+export type ReservationStatus = 'behind' | 'onPace' | 'ahead' | 'funded';
+
 export type CategoryReservations = {
   balance: number;
-  /** Portion of the balance spoken for by claims. */
+  /** Portion of the balance owed to future costs. Not spendable now. */
   reserved: number;
-  /** `balance - reserved` — what is genuinely free to spend. */
+  /**
+   * Allowance money still sitting in the balance. Spendable — that is what an
+   * allowance is for — but already spoken for, so it is not slack.
+   */
+  committed: number;
+  /** `balance - reserved - committed` — beyond both future costs and allowances. */
   available: number;
   /** What should be held across all claims, ignoring whether it is there. */
   accrued: number;
   /** `accrued - reserved` — how far behind the category is in total. */
   shortfall: number;
+  /** Every claim's full future cost, the point at which nothing more is needed. */
+  target: number;
+  /** `null` when the category has nothing to measure against. */
+  status: ReservationStatus | null;
   claims: SettledClaim[];
+  allowances: Allowance[];
 };
 
 /**
@@ -55,14 +73,14 @@ export type CategoryReservations = {
  * Expressing it this way reuses the engine's own contribution rate rather than
  * reimplementing period arithmetic, so the two cannot disagree.
  *
- * Rounded to whole cents. `monthlyRate` is a division, so leaving it unrounded
- * lets a float reach the spreadsheet, which rejects non-integers.
+ * Deliberately NOT rounded per claim. The budget engine sums the exact rates and
+ * rounds the total once, so rounding here first — round-then-sum against its
+ * sum-then-round — leaves the category looking a cent ahead or behind for no
+ * reason. Aggregates are rounded on the way out instead.
  */
 export function accruedToDate(claim: ReservationClaim): number {
   const remaining = claim.monthlyRate * claim.monthsRemaining;
-  return Math.round(
-    Math.min(claim.target, Math.max(0, claim.target - remaining)),
-  );
+  return Math.min(claim.target, Math.max(0, claim.target - remaining));
 }
 
 /**
@@ -75,6 +93,7 @@ export function accruedToDate(claim: ReservationClaim): number {
 export function settleReservations(
   balance: number,
   claims: ReservationClaim[],
+  allowances: Allowance[] = [],
 ): CategoryReservations {
   const ordered = [...claims].sort((a, b) => {
     const byDate = a.nextDate.localeCompare(b.nextDate);
@@ -82,23 +101,66 @@ export function settleReservations(
   });
 
   let unallocated = Math.max(0, balance);
-  const settled: SettledClaim[] = ordered.map(claim => {
+  // Settled exactly first: the engine sums exact rates and rounds the total
+  // once, so rounding per claim here and summing those would leave the category
+  // a cent ahead or behind for no reason.
+  const exact = ordered.map(claim => {
     const accrued = accruedToDate(claim);
     const reserved = Math.min(unallocated, accrued);
     unallocated -= reserved;
-    const shortfall = accrued - reserved;
-    return { ...claim, accrued, reserved, shortfall, onTrack: shortfall === 0 };
+    return { claim, accrued, reserved };
   });
 
-  const reserved = settled.reduce((sum, c) => sum + c.reserved, 0);
-  const accrued = settled.reduce((sum, c) => sum + c.accrued, 0);
+  const reserved = Math.round(exact.reduce((sum, c) => sum + c.reserved, 0));
+  const accrued = Math.round(exact.reduce((sum, c) => sum + c.accrued, 0));
+  const target = exact.reduce((sum, c) => sum + c.claim.target, 0);
+  const shortfall = Math.max(0, accrued - reserved);
+
+  // Per-claim figures are for display and round individually, so their sum can
+  // differ from the category total by a cent. The totals above are the
+  // authoritative ones.
+  const settled: SettledClaim[] = exact.map(c => ({
+    ...c.claim,
+    accrued: Math.round(c.accrued),
+    reserved: Math.round(c.reserved),
+    shortfall: Math.round(c.accrued - c.reserved),
+    onTrack: c.accrued - c.reserved < 1,
+  }));
+
+  // Allowances are claimed from whatever the future costs have not taken. As
+  // the month's allowance is spent the balance falls, and so does this — so it
+  // tracks what is left of the allowance rather than what it started at.
+  const allowanceTotal = allowances.reduce((sum, a) => sum + a.amount, 0);
+  const committed = Math.min(
+    Math.max(0, balance - reserved),
+    Math.max(0, allowanceTotal),
+  );
+  const available = balance - reserved - committed;
+
+  // A category with no claims and no allowances has nothing to be ahead of.
+  let status: ReservationStatus | null;
+  if (settled.length === 0 && allowances.length === 0) {
+    status = null;
+  } else if (shortfall > 0) {
+    status = 'behind';
+  } else if (target > 0 && balance - committed >= target) {
+    status = 'funded';
+  } else if (available > 0) {
+    status = 'ahead';
+  } else {
+    status = 'onPace';
+  }
 
   return {
     balance,
     reserved,
-    available: balance - reserved,
+    committed,
+    available,
     accrued,
-    shortfall: accrued - reserved,
+    shortfall,
+    target,
+    status,
     claims: settled,
+    allowances,
   };
 }

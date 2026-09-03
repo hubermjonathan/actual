@@ -3,6 +3,7 @@ import { aqlQuery } from '#server/aql';
 import * as db from '#server/db';
 import { batchMessages } from '#server/sync';
 import { getCurrency } from '#shared/currencies';
+import { amountToInteger } from '#shared/util';
 import * as monthUtils from '#shared/months';
 import { q } from '#shared/query';
 import type { CategoryEntity, CategoryGroupEntity } from '#types/models';
@@ -14,6 +15,7 @@ import { CategoryTemplateContext } from './category-template-context';
 import { tombstoneOrphanCleanupGroups } from './cleanup-groups';
 import {
   settleReservations,
+  type Allowance,
   type CategoryReservations,
 } from './reservations';
 import { getScheduleReservationClaims } from './schedule-template';
@@ -419,10 +421,24 @@ export async function getReservations({
         )
       : { claims: [] };
 
+    // A fixed monthly amount is an allowance: spendable this month, but already
+    // spoken for. It is not a reservation — reservations are money that must
+    // NOT be spent yet because it belongs to a future cost.
+    const allowances: Allowance[] = categoryTemplates.flatMap(t =>
+      t.type === 'simple' && t.monthly
+        ? [
+            {
+              label: t.label ?? category.name,
+              amount: amountToInteger(t.monthly, currency.decimalPlaces),
+            },
+          ]
+        : [],
+    );
+
     results.push({
       categoryId: category.id,
       categoryName: category.name,
-      ...settleReservations(balance, claims),
+      ...settleReservations(balance, claims, allowances),
     });
   }
 
