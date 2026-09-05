@@ -106,10 +106,10 @@ export function useCategoryReservations(
   );
 }
 
-/** Summed reservations across the given categories, for group rows. */
-export function useReservedTotal(
+function useFieldTotal(
   month: string,
   categoryIds: Array<CategoryEntity['id']>,
+  field: 'reserved' | 'committed',
 ): number | null {
   const byMonth = useContext(ReservationsContext);
   return useMemo(() => {
@@ -120,10 +120,26 @@ export function useReservedTotal(
     for (const id of categoryIds) {
       const r = forMonth.get(id);
       if (r) {
-        total += r.reserved;
+        total += r[field];
         found = true;
       }
     }
     return found ? total : null;
-  }, [byMonth, month, categoryIds]);
+  }, [byMonth, month, categoryIds, field]);
+}
+
+/** Summed reservations across the given categories, for group rows. */
+export function useReservedTotal(
+  month: string,
+  categoryIds: Array<CategoryEntity['id']>,
+): number | null {
+  return useFieldTotal(month, categoryIds, 'reserved');
+}
+
+/** Summed allowance commitments across the given categories, for group rows. */
+export function useCommittedTotal(
+  month: string,
+  categoryIds: Array<CategoryEntity['id']>,
+): number | null {
+  return useFieldTotal(month, categoryIds, 'committed');
 }
