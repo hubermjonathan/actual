@@ -28,8 +28,67 @@ bill that has not arrived. A `#template 1000 [groceries]` line is an
 
 The budget shows a **Committed** column, and the **Balance** column has the
 reserved part taken out. Hovering the figure breaks it into Reserved, Allowance
-and Spare. Transfers out of a category are capped at that balance, so a
-reservation cannot be moved by accident.
+and Spare.
+
+## Why an allowance is not a reservation
+
+Both are money you should not treat as spare, so it is tempting to count them
+together. They answer different questions, and counting them together gives the
+wrong answer to both.
+
+A **reservation** is money that must _not_ be spent yet. The bill has not
+arrived. Spending it means the bill cannot be paid.
+
+An **allowance** is money that _should_ be spent, this month, on the thing it is
+named for. Not spending it is not a saving — it is a month of groceries you did
+not buy.
+
+Take a category holding three monthly allowances:
+
+```
+#template 1000 [groceries]
+#template 150 [healthcare]
+#template 35 [dog food]
+```
+
+It is the 3rd of the month, nothing has been spent yet, and every schedule in
+the category is paid up, so nothing is reserved. Counting the allowance as spare
+gives:
+
+| Part     | Amount   |
+| -------- | -------- |
+| Reserved | 0.00     |
+| Spare    | 1,185.00 |
+
+which reads as 1,185.00 going unused, and the category shows as **Ahead** —
+money to redirect somewhere else. It is the grocery budget.
+Separating the two gives:
+
+| Part      | Amount   |
+| --------- | -------- |
+| Reserved  | 0.00     |
+| Allowance | 1,185.00 |
+| Spare     | 0.00     |
+
+The allowance figure is what is **left** of the allowance, not what it started
+at. Buy 400.00 of groceries and it falls to 785.00, because the balance it is
+measured against has fallen too. It reaches zero when the month's allowances
+have been spent, which is what is supposed to happen.
+
+## Moving money out
+
+Transfers out of a category are capped at its Balance — the figure with
+reservations already taken out — so money building up for a bill cannot be moved
+somewhere else by accident.
+
+This limit applies to **Transfer**, not to **Cover**. Cover pulls money _into_ a
+category that has overspent, and a reservation is no reason to block that.
+
+:::note
+The cap prevents the accident, not a determined raid. The same money is still
+reachable by editing the budgeted amount directly, from the mobile budget, or
+through the API. Treat it as a guard rail rather than a lock.
+:::
 
 ## How much is reserved
 
