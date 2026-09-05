@@ -6,6 +6,7 @@ import type {
   APIAccountGroupEntity,
   APICategoryEntity,
   APICategoryGroupEntity,
+  APICategoryReservationsEntity,
   APIFileEntity,
   APIPayeeEntity,
   APIRuleEntity,
@@ -78,6 +79,11 @@ export type ApiHandlers = {
       Record<string, unknown> & { categories?: Record<string, unknown>[] }
     >;
   }>;
+
+  'api/reservations': (arg: {
+    month: string;
+    categoryId?: string;
+  }) => Promise<APICategoryReservationsEntity[]>;
 
   'api/budget-set-amount': (arg: {
     month: string;

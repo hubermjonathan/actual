@@ -34,6 +34,7 @@ import {
   categoryModel,
   payeeModel,
   remoteFileModel,
+  reservationsModel,
   ruleModel,
   scheduleModel,
   tagModel,
@@ -463,6 +464,24 @@ handlers['api/budget-month'] = async function ({ month }) {
       };
     }),
   };
+};
+
+/**
+ * A category's balance split into what it owes and what is spare.
+ *
+ * Derived on every call and never stored. The internal handler trusts its
+ * `month`; validating it here keeps the public method consistent with the rest
+ * of the API, which rejects a month outside the budget.
+ */
+handlers['api/reservations'] = async function ({ month, categoryId }) {
+  checkFileOpen();
+  await validateMonth(month);
+
+  const reservations = await handlers['budget/get-reservations']({
+    month,
+    categoryId,
+  });
+  return reservations.map(reservationsModel.toExternal);
 };
 
 handlers['api/budget-set-amount'] = withMutation(async function ({

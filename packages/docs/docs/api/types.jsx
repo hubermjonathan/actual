@@ -230,6 +230,136 @@ export const objects = {
     },
   ],
 
+  categoryReservations: [
+    { name: 'categoryId', type: types.id },
+    { name: 'categoryName', type: 'string' },
+    { name: 'balance', type: types.amount },
+    {
+      name: 'reserved',
+      type: types.amount,
+      description: <span>Owed to a future cost. Should not be spent yet.</span>,
+    },
+    {
+      name: 'allowance',
+      type: types.amount,
+      description: (
+        <span>
+          Allowance left for this month. Spendable — that is its purpose.
+        </span>
+      ),
+    },
+    {
+      name: 'committed',
+      type: types.amount,
+      description: (
+        <span>
+          <code>reserved + allowance</code> — the part of the balance that
+          already has a job.
+        </span>
+      ),
+    },
+    {
+      name: 'spare',
+      type: types.amount,
+      description: (
+        <span>
+          <code>balance - committed</code>. Genuinely nothing claiming it. Can
+          be negative when the category is overspent.
+        </span>
+      ),
+    },
+    {
+      name: 'accrued',
+      type: types.amount,
+      description: (
+        <span>What should be set aside across every claim, held or not.</span>
+      ),
+    },
+    {
+      name: 'shortfall',
+      type: types.amount,
+      description: (
+        <span>
+          <code>accrued - reserved</code> — how far behind the category is.
+        </span>
+      ),
+    },
+    {
+      name: 'target',
+      type: types.amount,
+      description: <span>Every claim&apos;s full future cost.</span>,
+    },
+    {
+      name: 'status',
+      type: 'string',
+      description: (
+        <span>
+          One of <code>behind</code>, <code>onPace</code>, <code>ahead</code>,{' '}
+          <code>funded</code>, or <code>null</code> when the category has
+          nothing to measure.
+        </span>
+      ),
+    },
+    { name: 'claims', type: 'ReservationClaim[]' },
+    { name: 'allowances', type: 'Allowance[]' },
+  ],
+
+  reservationClaim: [
+    {
+      name: 'name',
+      type: 'string',
+      description: <span>The schedule this claim tracks.</span>,
+    },
+    { name: 'target', type: types.amount },
+    {
+      name: 'nextDate',
+      type: types.date,
+      description: <span>Claims are settled in this order.</span>,
+    },
+    { name: 'monthlyRate', type: types.amount },
+    {
+      name: 'monthsRemaining',
+      type: 'integer',
+      description: <span>0 means it is due this month.</span>,
+    },
+    { name: 'accrued', type: types.amount },
+    {
+      name: 'reserved',
+      type: types.amount,
+      description: (
+        <span>
+          What the balance covers. Never more than <code>accrued</code>.
+        </span>
+      ),
+    },
+    { name: 'shortfall', type: types.amount },
+    { name: 'onTrack', type: 'bool' },
+    {
+      name: 'fixed',
+      type: 'bool',
+      description: (
+        <span>
+          Written <code>[fixed]</code>: accrues at a flat rate rather than
+          sharing the category&apos;s pot.
+        </span>
+      ),
+    },
+  ],
+
+  allowance: [
+    {
+      name: 'label',
+      type: 'string',
+      description: (
+        <span>
+          From <code>#template 1000 [groceries]</code>, or the category name
+          when the template carries no label.
+        </span>
+      ),
+    },
+    { name: 'amount', type: types.amount },
+  ],
+
   schedule: [
     {
       name: 'id',
