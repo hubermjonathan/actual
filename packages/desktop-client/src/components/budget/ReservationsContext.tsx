@@ -29,7 +29,7 @@ type ReservationsProviderProps = {
 };
 
 /**
- * Loads reserved/available figures for every visible month.
+ * Loads reserved/spare figures for every visible month.
  *
  * Fetched per month rather than per category: a budget with fifty categories
  * across three months would otherwise issue a hundred and fifty requests to
@@ -61,10 +61,7 @@ export function ReservationsProvider({ children }: ReservationsProviderProps) {
     Promise.all(
       months.map(month =>
         send('budget/get-reservations', { month })
-          .then(
-            rows =>
-              [month, rows] as [string, CategoryReservationsResult[]],
-          )
+          .then(rows => [month, rows] as [string, CategoryReservationsResult[]])
           // One month failing must not blank the whole table.
           .catch(() => [month, []] as [string, CategoryReservationsResult[]]),
       ),
@@ -94,7 +91,7 @@ export function ReservationsProvider({ children }: ReservationsProviderProps) {
   );
 }
 
-/** Reserved/available for one category in one month, or null if it has none. */
+/** Reserved/spare for one category in one month, or null if it has none. */
 export function useCategoryReservations(
   month: string,
   categoryId: CategoryEntity['id'],
@@ -109,7 +106,7 @@ export function useCategoryReservations(
 function useFieldTotal(
   month: string,
   categoryIds: Array<CategoryEntity['id']>,
-  field: 'reserved' | 'committed',
+  field: 'reserved' | 'allowance',
 ): number | null {
   const byMonth = useContext(ReservationsContext);
   return useMemo(() => {
@@ -136,10 +133,10 @@ export function useReservedTotal(
   return useFieldTotal(month, categoryIds, 'reserved');
 }
 
-/** Summed allowance commitments across the given categories, for group rows. */
-export function useCommittedTotal(
+/** Summed allowance money across the given categories, for group rows. */
+export function useAllowanceTotal(
   month: string,
   categoryIds: Array<CategoryEntity['id']>,
 ): number | null {
-  return useFieldTotal(month, categoryIds, 'committed');
+  return useFieldTotal(month, categoryIds, 'allowance');
 }

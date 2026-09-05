@@ -11,25 +11,24 @@ import {
 import { Popover } from '@actual-app/components/popover';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
-import { Tooltip } from '@actual-app/components/tooltip';
 import { theme } from '@actual-app/components/theme';
+import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
+import type { CategoryReservationsResult } from '@actual-app/core/server/budget/goal-template';
 import * as monthUtils from '@actual-app/core/shared/months';
 import { css } from '@emotion/css';
 
 import { BalanceWithCarryover } from '#components/budget/BalanceWithCarryover';
+import {
+  useCategoryReservations,
+  useAllowanceTotal,
+  useReservedTotal,
+} from '#components/budget/ReservationsContext';
 import { makeAmountGrey } from '#components/budget/util';
 import { NotesButton } from '#components/NotesButton';
 import { CellValue, CellValueText } from '#components/spreadsheet/CellValue';
 import { Field, Row, SheetCell } from '#components/table';
 import type { SheetCellProps } from '#components/table';
-import type { CategoryReservationsResult } from '@actual-app/core/server/budget/goal-template';
-
-import {
-  useCategoryReservations,
-  useCommittedTotal,
-  useReservedTotal,
-} from '#components/budget/ReservationsContext';
 import { useCategoryScheduleGoalTemplateIndicator } from '#hooks/useCategoryScheduleGoalTemplateIndicator';
 import { useFormat } from '#hooks/useFormat';
 import { useNavigate } from '#hooks/useNavigate';
@@ -116,7 +115,7 @@ export const BudgetTotalsMonth = memo(function BudgetTotalsMonth() {
       </View>
       <View style={headerLabelStyle}>
         <Text style={{ color: theme.tableHeaderText }}>
-          <Trans>Claimed</Trans>
+          <Trans>Committed</Trans>
         </Text>
       </View>
       <View style={headerLabelStyle}>
@@ -130,7 +129,6 @@ export const BudgetTotalsMonth = memo(function BudgetTotalsMonth() {
           {props => <CellValueText {...props} style={cellStyle} />}
         </EnvelopeCellValue>
       </View>
-
     </View>
   );
 });
@@ -188,7 +186,7 @@ export const ExpenseGroupMonth = memo(function ExpenseGroupMonth({
           type: 'financial',
         }}
       />
-      <GroupClaimed group={group} month={month} />
+      <GroupCommitted group={group} month={month} />
       <GroupBalanceLessReserved group={group} month={month} />
     </View>
   );
@@ -492,7 +490,7 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
           </EnvelopeCellValue>
         </View>
       </Field>
-      <ClaimedCell reservations={reservations} />
+      <CommittedCell reservations={reservations} />
       <Field
         ref={balanceMenuTriggerRef}
         name="balance"
@@ -568,9 +566,7 @@ type GroupBalanceProps = {
  */
 function GroupBalanceLessReserved({ group, month }: GroupBalanceProps) {
   const format = useFormat();
-  const balance = useEnvelopeSheetValue(
-    envelopeBudget.groupBalance(group.id),
-  );
+  const balance = useEnvelopeSheetValue(envelopeBudget.groupBalance(group.id));
   const categoryIds = useMemo(
     () => (group.categories ?? []).map(c => c.id),
     [group.categories],
@@ -594,22 +590,22 @@ function GroupBalanceLessReserved({ group, month }: GroupBalanceProps) {
   );
 }
 
-
-type ClaimedCellProps = {
+type CommittedCellProps = {
   reservations: CategoryReservationsResult | null;
 };
 
 /**
- * Money in this balance that is already claimed — owed to a future cost, or
- * set aside as this month's allowance.
+ * Money in this balance that already has a job — owed to a future cost, or set
+ * aside as this month's allowance.
  *
  * The two are on different horizons, so the split is on the hover; the single
  * figure answers the question the row is scanned for, which is how much of the
- * balance is not free.
+ * balance is not spare.
  */
-function ClaimedCell({ reservations }: ClaimedCellProps) {
+function CommittedCell({ reservations }: CommittedCellProps) {
   const format = useFormat();
-  const claimed = (reservations?.reserved ?? 0) + (reservations?.committed ?? 0);
+  const committed =
+    (reservations?.reserved ?? 0) + (reservations?.allowance ?? 0);
 
   const cell = (
     <Text
@@ -623,12 +619,12 @@ function ClaimedCell({ reservations }: ClaimedCellProps) {
               : theme.tableTextSubdued,
       }}
     >
-      {format(claimed, 'financial')}
+      {format(committed, 'financial')}
     </Text>
   );
 
   return (
-    <Field name="claimed" width="flex" style={{ textAlign: 'right' }}>
+    <Field name="committed" width="flex" style={{ textAlign: 'right' }}>
       {hasReservationDetail(reservations) ? (
         <Tooltip
           content={<ReservationsBreakdown reservations={reservations} />}
@@ -645,23 +641,23 @@ function ClaimedCell({ reservations }: ClaimedCellProps) {
   );
 }
 
-type GroupClaimedProps = {
+type GroupCommittedProps = {
   group: CategoryGroupMonthProps['group'];
   month: string;
 };
 
-/** A group's claimed total is the sum of its categories' claims. */
-function GroupClaimed({ group, month }: GroupClaimedProps) {
+/** A group's committed total is the sum of its categories' commitments. */
+function GroupCommitted({ group, month }: GroupCommittedProps) {
   const format = useFormat();
   const categoryIds = useMemo(
     () => (group.categories ?? []).map(c => c.id),
     [group.categories],
   );
   const reserved = useReservedTotal(month, categoryIds) ?? 0;
-  const committed = useCommittedTotal(month, categoryIds) ?? 0;
+  const allowance = useAllowanceTotal(month, categoryIds) ?? 0;
 
   return (
-    <Field name="claimed" width="flex" style={{ textAlign: 'right' }}>
+    <Field name="committed" width="flex" style={{ textAlign: 'right' }}>
       <Text
         style={{
           ...styles.tnum,
@@ -669,14 +665,14 @@ function GroupClaimed({ group, month }: GroupClaimedProps) {
           color: theme.tableTextSubdued,
         }}
       >
-        {format(reserved + committed, 'financial')}
+        {format(reserved + allowance, 'financial')}
       </Text>
     </Field>
   );
 }
 
 function hasReservationDetail(r: CategoryReservationsResult | null) {
-  return !!r && (r.reserved > 0 || r.committed > 0);
+  return !!r && (r.reserved > 0 || r.allowance > 0);
 }
 
 type ReservationsBreakdownProps = {
@@ -713,9 +709,9 @@ function BreakdownRow({
 /**
  * How a category's balance divides up.
  *
- * `Reserved` is owed to a future cost and should not be spent yet. `Committed`
- * is an allowance for this month — spendable, that is its purpose, but already
- * spoken for. What is left over is neither.
+ * `Reserved` is owed to a future cost and should not be spent yet. `Allowance`
+ * is for this month — spendable, that is its purpose, but already committed.
+ * What is left over is spare.
  */
 function ReservationsBreakdown({ reservations }: ReservationsBreakdownProps) {
   const { t } = useTranslation();
@@ -723,11 +719,11 @@ function ReservationsBreakdown({ reservations }: ReservationsBreakdownProps) {
   if (!reservations) return null;
 
   const STATUS_LABEL: Record<string, string> = {
-    behind: t('Behind by {{amount}}', {
+    behind: t('Shortfall of {{amount}}', {
       amount: format(reservations.shortfall, 'financial'),
     }),
     ahead: t('Ahead by {{amount}}', {
-      amount: format(reservations.available, 'financial'),
+      amount: format(reservations.spare, 'financial'),
     }),
     funded: t('Fully funded'),
     onPace: t('On pace'),
@@ -756,17 +752,19 @@ function ReservationsBreakdown({ reservations }: ReservationsBreakdownProps) {
                           'financial',
                         )}`
                   }
-                  color={c.onTrack ? undefined : theme.templateNumberUnderFunded}
+                  color={
+                    c.onTrack ? undefined : theme.templateNumberUnderFunded
+                  }
                 />
               </View>
             ))}
         </>
       )}
-      {reservations.committed > 0 && (
+      {reservations.allowance > 0 && (
         <>
           <BreakdownRow
-            label={t('Committed')}
-            amount={format(reservations.committed, 'financial')}
+            label={t('Allowance')}
+            amount={format(reservations.allowance, 'financial')}
           />
           {reservations.allowances.map(a => (
             <View key={a.label} style={{ paddingLeft: 12, opacity: 0.75 }}>
@@ -786,8 +784,8 @@ function ReservationsBreakdown({ reservations }: ReservationsBreakdownProps) {
         }}
       >
         <BreakdownRow
-          label={t('Available')}
-          amount={format(reservations.available, 'financial')}
+          label={t('Spare')}
+          amount={format(reservations.spare, 'financial')}
           bold
         />
         {reservations.status && (
