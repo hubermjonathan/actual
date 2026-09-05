@@ -393,6 +393,29 @@ Below is an example of using the "Full" flag assuming a once-per-year schedule f
 | `#template schedule full Simplefin` |       $ 0       | Budget in all months except May |
 | `#template schedule full Simplefin` |      $ 15       |          Budget in May          |
 
+#### Fixed Flag
+
+By default a Schedule template looks at the category's balance and budgets only
+what the upcoming schedules still need.
+That means the amount changes from month to month, and can be $ 0 when the
+balance already covers the next few bills.
+
+The "Fixed" flag budgets the same amount every month instead — the schedule
+amount divided by its interval — no matter what the balance is.
+Below is an example for a $ 1,200 yearly schedule called "Taxes".
+
+| Syntax                              | Budgeted Amount |                     Note                      |
+| ----------------------------------- | :-------------: | :-------------------------------------------: |
+| `#template schedule Taxes`          |     varies      | Depends on the balance and on other schedules |
+| `#template schedule Taxes [fixed]`  |     $ 100       |          The same in every month               |
+
+Use this when you want a predictable monthly cost, or when you think of each
+schedule as saving at its own rate rather than sharing one pot.
+
+:::note
+A fixed schedule keeps contributing even once it is fully funded.
+:::
+
 #### Adjustments
 
 Yearly expenses (e.g. insurance, property rates, etc.) increase year on year. Often the amount is unknown until close to the due date. This creates a budget crunch - if your $ 1,000 insurance jumps 20% ($ 1,200), you need to make up that extra $ 200 in just a month or two.

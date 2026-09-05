@@ -65,6 +65,11 @@ export type ScheduleTemplate = {
   name?: string;
   scheduleId?: string;
   full?: boolean;
+  /**
+   * Contribute the same amount every month instead of letting the category's
+   * balance decide. Written `[fixed]`.
+   */
+  fixed?: boolean;
   adjustment?: number;
   adjustmentType?: 'percent' | 'fixed';
 } & BaseTemplateWithPriority;

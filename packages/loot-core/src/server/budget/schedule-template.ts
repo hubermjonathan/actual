@@ -301,6 +301,20 @@ function getMonthlyBaseContribution(schedule: ScheduleTemplateTarget) {
   }
 }
 
+/**
+ * What a claim should already have set aside, at its flat monthly rate.
+ *
+ * Used to keep a `[fixed]` claim's savings out of the pooled allocator's reach:
+ * the pooled claims must not be credited with money that is already spoken for.
+ */
+function getAccruedToDate(schedule: ScheduleTemplateTarget) {
+  const rate = getMonthlyBaseContribution(schedule);
+  return Math.min(
+    schedule.target,
+    Math.max(0, schedule.target - rate * schedule.num_months),
+  );
+}
+
 function getSinkingBaseContributionTotal(t: ScheduleTemplateTarget[]) {
   let total = 0;
   for (const schedule of t) total += getMonthlyBaseContribution(schedule);
@@ -411,9 +425,20 @@ export async function runSchedule(
     c.target_frequency === 'weekly' || c.target_frequency === 'daily';
 
   const t_payMonthOf = t.t.filter(isPayMonthOf);
-  const t_sinking = t.t
+  const t_allSinking = t.t
     .filter(c => !isPayMonthOf(c))
     .sort((a, b) => a.next_date_string.localeCompare(b.next_date_string));
+
+  // `[fixed]` claims contribute the same amount every month rather than letting
+  // the category's balance decide. They are held out of the pooled allocation
+  // entirely — both their contribution and the savings they have already
+  // accrued, which the remaining claims must not be credited with.
+  const t_fixed = t_allSinking.filter(c => c.template.fixed);
+  const t_sinking = t_allSinking.filter(c => !c.template.fixed);
+  const fixedContribution = getSinkingBaseContributionTotal(t_fixed);
+  const fixedHeld = t_fixed.reduce((sum, c) => sum + getAccruedToDate(c), 0);
+  const poolBalance = Math.max(0, last_month_balance - fixedHeld);
+
   const numSubMonthly = t.t.filter(isSubMonthly).length;
   const totalPayMonthOf = getPayMonthOfTotal(t_payMonthOf);
   const totalSinking = getSinkingTotal(t_sinking);
@@ -439,6 +464,11 @@ export async function runSchedule(
     );
   };
 
+  to_budget += Math.round(fixedContribution);
+  for (const c of t_fixed) {
+    addContribution(c.template, getMonthlyBaseContribution(c));
+  }
+
   if (
     balance >= totalSinking + totalPayMonthOf ||
     (lastMonthGoal < totalSinking + totalPayMonthOf &&
@@ -457,11 +487,10 @@ export async function runSchedule(
     }
   } else {
     const { total: totalSinkingContribution, perSchedule: sinkingPerSchedule } =
-      getSinkingContributionBreakdown(t_sinking, remainder, last_month_balance);
+      getSinkingContributionBreakdown(t_sinking, remainder, poolBalance);
     if (t_sinking.length === 0) {
       to_budget +=
-        Math.round(totalPayMonthOf + totalSinkingContribution) -
-        last_month_balance;
+        Math.round(totalPayMonthOf + totalSinkingContribution) - poolBalance;
     } else {
       to_budget += Math.round(totalPayMonthOf + totalSinkingContribution);
     }
