@@ -3,9 +3,9 @@ import { aqlQuery } from '#server/aql';
 import * as db from '#server/db';
 import { batchMessages } from '#server/sync';
 import { getCurrency } from '#shared/currencies';
-import { amountToInteger } from '#shared/util';
 import * as monthUtils from '#shared/months';
 import { q } from '#shared/query';
+import { amountToInteger } from '#shared/util';
 import type { CategoryEntity, CategoryGroupEntity } from '#types/models';
 import type { CleanupTemplate } from '#types/models/cleanup-templates';
 import type { Template } from '#types/models/templates';
@@ -373,10 +373,10 @@ export type CategoryReservationsResult = CategoryReservations & {
 
 /**
  * Split each category's balance into what is reserved for known future costs
- * and what is genuinely available to spend.
+ * and what is genuinely spare to spend.
  *
  * Read-only and derived on every call. Categories with no schedule templates
- * are reported with everything available, so a caller can render every row
+ * are reported with everything spare, so a caller can render every row
  * from one result rather than special-casing.
  */
 export async function getReservations({

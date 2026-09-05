@@ -2,7 +2,7 @@
 //
 // The problem it solves: a category's balance reads as spendable when part of
 // it is really owed to an irregular cost that has not arrived yet. Splitting
-// the balance into `reserved` and `available` makes the number you read before
+// the balance into `reserved` and `spare` makes the number you read before
 // spending the money you can actually spend.
 //
 // Everything here is DERIVED on read, never stored. A stored figure would drift
@@ -48,11 +48,11 @@ export type CategoryReservations = {
   reserved: number;
   /**
    * Allowance money still sitting in the balance. Spendable — that is what an
-   * allowance is for — but already spoken for, so it is not slack.
+   * allowance is for — but already committed, so it is not slack.
    */
-  committed: number;
-  /** `balance - reserved - committed` — beyond both future costs and allowances. */
-  available: number;
+  allowance: number;
+  /** `balance - reserved - allowance` — beyond both future costs and allowances. */
+  spare: number;
   /** What should be held across all claims, ignoring whether it is there. */
   accrued: number;
   /** `accrued - reserved` — how far behind the category is in total. */
@@ -127,15 +127,15 @@ export function settleReservations(
     onTrack: c.accrued - c.reserved < 1,
   }));
 
-  // Allowances are claimed from whatever the future costs have not taken. As
-  // the month's allowance is spent the balance falls, and so does this — so it
-  // tracks what is left of the allowance rather than what it started at.
+  // Allowances take whatever the future costs have not. As the month's
+  // allowance is spent the balance falls, and so does this — so it tracks what
+  // is left of the allowance rather than what it started at.
   const allowanceTotal = allowances.reduce((sum, a) => sum + a.amount, 0);
-  const committed = Math.min(
+  const allowance = Math.min(
     Math.max(0, balance - reserved),
     Math.max(0, allowanceTotal),
   );
-  const available = balance - reserved - committed;
+  const spare = balance - reserved - allowance;
 
   // A category with no claims and no allowances has nothing to be ahead of.
   let status: ReservationStatus | null;
@@ -143,9 +143,9 @@ export function settleReservations(
     status = null;
   } else if (shortfall > 0) {
     status = 'behind';
-  } else if (target > 0 && balance - committed >= target) {
+  } else if (target > 0 && balance - allowance >= target) {
     status = 'funded';
-  } else if (available > 0) {
+  } else if (spare > 0) {
     status = 'ahead';
   } else {
     status = 'onPace';
@@ -154,8 +154,8 @@ export function settleReservations(
   return {
     balance,
     reserved,
-    committed,
-    available,
+    allowance,
+    spare,
     accrued,
     shortfall,
     target,

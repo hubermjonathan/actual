@@ -59,13 +59,13 @@ describe('accruedToDate', () => {
 });
 
 describe('settleReservations', () => {
-  it('splits a balance into reserved and available', () => {
+  it('splits a balance into reserved and spare', () => {
     const claims = [claim('Amex Plat AF', 89500, 12, 4, '2026-12-01')];
     const r = settleReservations(100000, claims);
 
     expect(r.reserved).toBe(Math.round(89500 * (8 / 12))); // 8 of 12 elapsed
     expect(Number.isInteger(r.reserved)).toBe(true);
-    expect(r.available).toBe(100000 - r.reserved);
+    expect(r.spare).toBe(100000 - r.reserved);
     expect(r.claims[0].onTrack).toBe(true);
     expect(r.shortfall).toBe(0);
   });
@@ -75,7 +75,7 @@ describe('settleReservations', () => {
     const r = settleReservations(50000, claims);
 
     expect(r.reserved).toBe(50000);
-    expect(r.available).toBe(0);
+    expect(r.spare).toBe(0);
     expect(r.claims[0].shortfall).toBe(30000);
     expect(r.claims[0].onTrack).toBe(false);
   });
@@ -95,13 +95,13 @@ describe('settleReservations', () => {
     expect(r.claims[1].shortfall).toBe(60000);
   });
 
-  it('leaves the excess available once every claim is covered', () => {
+  it('leaves the excess spare once every claim is covered', () => {
     const claims = [claim('Domain', 1658, 12, 9, '2027-05-01')];
     const r = settleReservations(500000, claims);
 
     expect(r.shortfall).toBe(0);
-    expect(r.available).toBe(500000 - r.reserved);
-    expect(r.available).toBeGreaterThan(0);
+    expect(r.spare).toBe(500000 - r.reserved);
+    expect(r.spare).toBeGreaterThan(0);
   });
 
   it('never reports negative reserved when the category is overspent', () => {
@@ -109,18 +109,18 @@ describe('settleReservations', () => {
     const r = settleReservations(-5000, claims);
 
     expect(r.reserved).toBe(0);
-    expect(r.available).toBe(-5000);
+    expect(r.spare).toBe(-5000);
     expect(r.claims[0].shortfall).toBe(80000);
   });
 
-  it('treats a category with no claims as entirely available', () => {
+  it('treats a category with no claims as entirely spare', () => {
     const r = settleReservations(118500, []);
     expect(r.reserved).toBe(0);
-    expect(r.available).toBe(118500);
+    expect(r.spare).toBe(118500);
     expect(r.claims).toEqual([]);
   });
 
-  it('reserved plus available always equals the balance', () => {
+  it('reserved plus spare always equals the balance', () => {
     const claims = [
       claim('Epic Pass', 80000, 12, 0, '2026-09-01'),
       claim('Christmas', 75000, 12, 2, '2026-11-01'),
@@ -128,9 +128,9 @@ describe('settleReservations', () => {
     ];
     for (const balance of [0, 1000, 148391, 500000, -2500]) {
       const r = settleReservations(balance, claims);
-      expect(r.reserved + r.available).toBe(balance);
+      expect(r.reserved + r.spare).toBe(balance);
       expect(Number.isInteger(r.reserved)).toBe(true);
-      expect(Number.isInteger(r.available)).toBe(true);
+      expect(Number.isInteger(r.spare)).toBe(true);
     }
   });
 });
@@ -138,31 +138,35 @@ describe('settleReservations', () => {
 describe('allowances and status', () => {
   const groceries = [{ label: 'groceries', amount: 100000 }];
 
-  it('treats an allowance as committed, not available', () => {
+  it('keeps an allowance out of spare', () => {
     // Nothing is owed to a future cost, but the balance is this month's
     // grocery money — it is spendable, and it is not slack.
-    const r = settleReservations(118500, [], [
-      { label: 'groceries', amount: 100000 },
-      { label: 'healthcare', amount: 15000 },
-      { label: 'dog food', amount: 3500 },
-    ]);
+    const r = settleReservations(
+      118500,
+      [],
+      [
+        { label: 'groceries', amount: 100000 },
+        { label: 'healthcare', amount: 15000 },
+        { label: 'dog food', amount: 3500 },
+      ],
+    );
 
     expect(r.reserved).toBe(0);
-    expect(r.committed).toBe(118500);
-    expect(r.available).toBe(0);
+    expect(r.allowance).toBe(118500);
+    expect(r.spare).toBe(0);
     expect(r.status).toBe('onPace');
   });
 
-  it('shrinks the committed figure as the allowance is spent', () => {
+  it('shrinks the allowance figure as it is spent', () => {
     const r = settleReservations(40000, [], groceries);
-    expect(r.committed).toBe(40000);
-    expect(r.available).toBe(0);
+    expect(r.allowance).toBe(40000);
+    expect(r.spare).toBe(0);
   });
 
   it('reports the excess once allowances are covered', () => {
     const r = settleReservations(150000, [], groceries);
-    expect(r.committed).toBe(100000);
-    expect(r.available).toBe(50000);
+    expect(r.allowance).toBe(100000);
+    expect(r.spare).toBe(50000);
     expect(r.status).toBe('ahead');
   });
 
@@ -171,8 +175,8 @@ describe('allowances and status', () => {
     const r = settleReservations(150000, claims, groceries);
 
     expect(r.reserved).toBe(80000);
-    expect(r.committed).toBe(70000); // what is left, short of the 1,000.00
-    expect(r.available).toBe(0);
+    expect(r.allowance).toBe(70000); // what is left, short of the 1,000.00
+    expect(r.spare).toBe(0);
   });
 
   it('reports behind when a claim is short, allowances notwithstanding', () => {
@@ -181,7 +185,7 @@ describe('allowances and status', () => {
 
     expect(r.status).toBe('behind');
     expect(r.shortfall).toBe(30000);
-    expect(r.committed).toBe(0);
+    expect(r.allowance).toBe(0);
   });
 
   it('reports funded when every future cost is fully covered', () => {
