@@ -137,6 +137,18 @@ Templates can be given a priority flag to change the order that the templates ge
 - Thousands separators are not supported (e.g., 1,234). You must use 1234.
 - By default, templates do not consider available funds when being applied. Use template priorities to ensure only the amount available to budget is assigned.
 - If you have the "Hide decimal places" setting enabled, templates will round away all decimal amounts. This way, you won't have funds budgeted that you can't see on your budget table.
+- Templates live in the category note, so they follow the category rather than the money. Merging or deleting a category leaves its template lines behind with it.
+
+:::caution
+When you delete a category, Actual moves its transactions and repoints its rules
+at the category you choose — but the template lines stay in the deleted
+category's note and are lost with it.
+The money arrives in the new category with nothing budgeting it.
+
+Copy the template lines into the destination category's note **before** you
+delete, then check that the destination still parses: two `#template` lines that
+each name the same schedule will double-count it.
+:::
 
 ## Available Templates
 
@@ -387,6 +399,10 @@ Below is an example of the syntax for a $ 100 per month schedule called "Interne
 The function of the schedule template is very similar to the By template, but you don't need to adjust both a schedule and a template individually.
 You can adjust the schedule in the schedule editor and the template will stay up to date automatically.
 
+Money building up for a schedule that is months away still sits in the
+category's balance, where it reads as spendable.
+[Reservations](./reservations.md) split that balance so it does not.
+
 :::warning
 
 The schedule name is defined in the **Schedules** editor. **Take great care to copy across these schedule names EXACTLY** or the template will not be able to find the schedule.
@@ -417,13 +433,33 @@ The "Fixed" flag budgets the same amount every month instead — the schedule
 amount divided by its interval — no matter what the balance is.
 Below is an example for a $ 1,200 yearly schedule called "Taxes".
 
-| Syntax                              | Budgeted Amount |                     Note                      |
-| ----------------------------------- | :-------------: | :-------------------------------------------: |
-| `#template schedule Taxes`          |     varies      | Depends on the balance and on other schedules |
-| `#template schedule Taxes [fixed]`  |     $ 100       |          The same in every month               |
+| Syntax                             | Budgeted Amount |                     Note                      |
+| ---------------------------------- | :-------------: | :-------------------------------------------: |
+| `#template schedule Taxes`         |     varies      | Depends on the balance and on other schedules |
+| `#template schedule Taxes [fixed]` |      $ 100      |            The same in every month            |
 
 Use this when you want a predictable monthly cost, or when you think of each
 schedule as saving at its own rate rather than sharing one pot.
+
+##### Why the default varies
+
+The default treats the category as one shared pot.
+Each month it walks the schedules in due-date order, credits the balance already
+there against each one's **full** amount, and budgets only for what is still
+uncovered.
+It falls back to the flat rate — amount ÷ interval — only when the balance
+already covers every schedule in the category in full.
+
+For a category holding several irregular bills that threshold is rarely reached,
+because the whole purpose of the category is that the money is not all sitting
+there yet.
+So the shared-pot path runs nearly every month, and the amount moves as bills
+are paid and the balance changes.
+
+A fixed schedule is held out of that pot entirely — both its monthly amount and
+what it has already saved.
+This matters: without it, the remaining schedules would be credited with money
+that is already spoken for and would budget too little.
 
 :::note
 A fixed schedule keeps contributing even once it is fully funded.
