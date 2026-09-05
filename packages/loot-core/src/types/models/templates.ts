@@ -52,6 +52,11 @@ export type SpendTemplate = {
 export type SimpleTemplate = {
   type: 'simple';
   monthly?: number;
+  /**
+   * What this amount is for, e.g. `#template 1000 [groceries]`. Annotation
+   * only — it names an allowance, it does not change how much is budgeted.
+   */
+  label?: string;
   limit?: {
     amount: number;
     hold: boolean;

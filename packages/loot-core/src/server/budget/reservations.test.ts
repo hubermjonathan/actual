@@ -134,3 +134,83 @@ describe('settleReservations', () => {
     }
   });
 });
+
+describe('allowances and status', () => {
+  const groceries = [{ label: 'groceries', amount: 100000 }];
+
+  it('treats an allowance as committed, not available', () => {
+    // Nothing is owed to a future cost, but the balance is this month's
+    // grocery money — it is spendable, and it is not slack.
+    const r = settleReservations(118500, [], [
+      { label: 'groceries', amount: 100000 },
+      { label: 'healthcare', amount: 15000 },
+      { label: 'dog food', amount: 3500 },
+    ]);
+
+    expect(r.reserved).toBe(0);
+    expect(r.committed).toBe(118500);
+    expect(r.available).toBe(0);
+    expect(r.status).toBe('onPace');
+  });
+
+  it('shrinks the committed figure as the allowance is spent', () => {
+    const r = settleReservations(40000, [], groceries);
+    expect(r.committed).toBe(40000);
+    expect(r.available).toBe(0);
+  });
+
+  it('reports the excess once allowances are covered', () => {
+    const r = settleReservations(150000, [], groceries);
+    expect(r.committed).toBe(100000);
+    expect(r.available).toBe(50000);
+    expect(r.status).toBe('ahead');
+  });
+
+  it('pays future costs before allowances', () => {
+    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
+    const r = settleReservations(150000, claims, groceries);
+
+    expect(r.reserved).toBe(80000);
+    expect(r.committed).toBe(70000); // what is left, short of the 1,000.00
+    expect(r.available).toBe(0);
+  });
+
+  it('reports behind when a claim is short, allowances notwithstanding', () => {
+    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')];
+    const r = settleReservations(50000, claims, groceries);
+
+    expect(r.status).toBe('behind');
+    expect(r.shortfall).toBe(30000);
+    expect(r.committed).toBe(0);
+  });
+
+  it('reports funded when every future cost is fully covered', () => {
+    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')];
+    const r = settleReservations(120000, claims);
+
+    expect(r.target).toBe(120000);
+    expect(r.status).toBe('funded');
+  });
+
+  it('rounds the total once, not each claim', () => {
+    // Two claims whose exact accruals each end in a fraction of a cent.
+    // Round-then-sum gives 9,047.75; sum-then-round gives 9,047.76, which is
+    // what the budget engine actually contributed.
+    const claims = [
+      claim('Tractive', 11939, 12, 5, '2027-02-01'),
+      claim('Epic Pass Deposit', 5000, 12, 7, '2027-04-01'),
+    ];
+    const r = settleReservations(1000000, claims);
+
+    const roundThenSum = r.claims.reduce((s, c) => s + c.accrued, 0);
+    expect(r.accrued).toBe(9048);
+    expect(roundThenSum).toBe(9047);
+    expect(Number.isInteger(r.reserved)).toBe(true);
+  });
+
+  it('has no status when there is nothing to measure', () => {
+    // A plain savings category with no templates is neither ahead nor behind.
+    expect(settleReservations(1625230, []).status).toBeNull();
+    expect(settleReservations(0, []).status).toBeNull();
+  });
+});
