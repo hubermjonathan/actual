@@ -26,7 +26,12 @@ type BalanceCellProps = {
     'leftover' | 'sum-amount'
   >;
   category: CategoryEntity;
-  show3Columns?: boolean;
+  /**
+   * Amount of the balance already reserved for known future costs. Desktop
+   * passes this too -- without it the phone shows the raw balance and the two
+   * platforms disagree about the same category.
+   */
+  reserved?: number;
   onPress?: () => void;
   'aria-label'?: string;
 };
@@ -34,15 +39,13 @@ type BalanceCellProps = {
 export function BalanceCell({
   binding,
   category,
-  show3Columns,
+  reserved = 0,
   onPress,
   'aria-label': ariaLabel,
 }: BalanceCellProps) {
   const { t } = useTranslation();
   const [budgetType = 'envelope'] = useSyncedPref('budgetType');
-  const columnWidth = getColumnWidth({
-    show3Columns,
-  });
+  const columnWidth = getColumnWidth();
 
   const goal =
     budgetType === 'tracking'
@@ -77,6 +80,7 @@ export function BalanceCell({
       goal={goal}
       budgeted={budgeted}
       longGoal={longGoal}
+      reserved={reserved}
       CarryoverIndicator={MobileCarryoverIndicator}
     >
       {({ type, value, className: defaultClassName }) => (

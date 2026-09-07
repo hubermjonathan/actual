@@ -14,6 +14,7 @@ import type { BudgetType } from '@actual-app/core/server/prefs';
 import * as monthUtils from '@actual-app/core/shared/months';
 import type { CategoryEntity } from '@actual-app/core/types/models';
 
+import { useCategoryReservations } from '#components/budget/ReservationsContext';
 import { useCategoriesById } from '#hooks/useCategories';
 import { useFormat } from '#hooks/useFormat';
 import { useNavigate } from '#hooks/useNavigate';
@@ -26,31 +27,35 @@ import { envelopeBudget, trackingBudget } from '#spreadsheet/bindings';
 
 import { BalanceCell } from './BalanceCell';
 import { BudgetCell } from './BudgetCell';
-import { getColumnWidth, ROW_HEIGHT } from './BudgetTable';
+import {
+  getColumnWidth,
+  getFrozenColumnStyle,
+  ROW_HEIGHT,
+  TABLE_WIDTH,
+} from './BudgetTable';
+import { CommittedCell } from './CommittedCell';
 import { SpentCell } from './SpentCell';
 
 type ExpenseCategoryNameProps = {
   category: CategoryEntity;
   onEditCategory: (id: CategoryEntity['id']) => void;
-  show3Columns: boolean;
+  backgroundColor: string;
 };
 
 function ExpenseCategoryName({
   category,
   onEditCategory,
-  show3Columns,
+  backgroundColor,
 }: ExpenseCategoryNameProps) {
-  const sidebarColumnWidth = getColumnWidth({
-    show3Columns,
-    isSidebar: true,
-  });
+  const sidebarColumnWidth = getColumnWidth({ isSidebar: true });
 
   return (
     <View
       style={{
-        flex: 1,
+        ...getFrozenColumnStyle(backgroundColor),
         justifyContent: 'center',
         alignItems: 'flex-start',
+        paddingLeft: 5,
       }}
     >
       {/* Hidden drag button */}
@@ -104,8 +109,6 @@ type ExpenseCategoryCellsProps = {
   category: CategoryEntity;
   month: string;
   onBudgetAction: (month: string, action: string, args: unknown) => void;
-  show3Columns: boolean;
-  showBudgetedColumn: boolean;
   onOpenBalanceMenu: () => void;
   onShowActivity: () => void;
 };
@@ -114,16 +117,12 @@ function ExpenseCategoryCells({
   category,
   month,
   onBudgetAction,
-  show3Columns,
-  showBudgetedColumn,
   onOpenBalanceMenu,
   onShowActivity,
 }: ExpenseCategoryCellsProps) {
   const { t } = useTranslation();
-  const columnWidth = getColumnWidth({
-    show3Columns,
-    isSidebar: false,
-  });
+  const columnWidth = getColumnWidth();
+  const reservations = useCategoryReservations(month, category.id);
   const [budgetType = 'envelope'] = useSyncedPref('budgetType');
 
   const budgeted =
@@ -147,11 +146,12 @@ function ExpenseCategoryCells({
         justifyContent: 'flex-end',
         alignItems: 'center',
         flexDirection: 'row',
+        flex: 1,
+        paddingRight: 5,
       }}
     >
       <View
         style={{
-          ...(!show3Columns && !showBudgetedColumn && { display: 'none' }),
           width: columnWidth,
           justifyContent: 'center',
           alignItems: 'flex-end',
@@ -167,7 +167,6 @@ function ExpenseCategoryCells({
       </View>
       <View
         style={{
-          ...(!show3Columns && showBudgetedColumn && { display: 'none' }),
           width: columnWidth,
           justifyContent: 'center',
           alignItems: 'flex-end',
@@ -177,8 +176,20 @@ function ExpenseCategoryCells({
           binding={spent}
           category={category}
           month={month}
-          show3Columns={show3Columns}
           onPress={onShowActivity}
+        />
+      </View>
+      <View
+        style={{
+          width: columnWidth,
+          justifyContent: 'center',
+          alignItems: 'flex-end',
+        }}
+      >
+        <CommittedCell
+          category={category}
+          month={month}
+          onPress={onOpenBalanceMenu}
         />
       </View>
       <View
@@ -191,7 +202,7 @@ function ExpenseCategoryCells({
         <BalanceCell
           binding={balance}
           category={category}
-          show3Columns={show3Columns}
+          reserved={reservations?.reserved ?? 0}
           onPress={onOpenBalanceMenu}
           aria-label={t('Open balance menu for {{categoryName}} category', {
             categoryName: category.name,
@@ -208,8 +219,6 @@ type ExpenseCategoryListItemProps = ComponentPropsWithoutRef<
   month: string;
   isHidden: boolean;
   style?: CSSProperties;
-  show3Columns: boolean;
-  showBudgetedColumn: boolean;
   onEditCategory: (id: CategoryEntity['id']) => void;
   onBudgetAction: (month: string, action: string, args: unknown) => void;
 };
@@ -219,8 +228,6 @@ export function ExpenseCategoryListItem({
   isHidden,
   onEditCategory,
   onBudgetAction,
-  show3Columns,
-  showBudgetedColumn,
   ...props
 }: ExpenseCategoryListItemProps) {
   const { value: category } = props;
@@ -416,6 +423,10 @@ export function ExpenseCategoryListItem({
     return null;
   }
 
+  const rowBackgroundColor = monthUtils.isCurrentMonth(month)
+    ? theme.budgetCurrentMonth
+    : theme.budgetOtherMonth;
+
   return (
     <GridListItem
       textValue={category.name}
@@ -424,32 +435,26 @@ export function ExpenseCategoryListItem({
     >
       <View
         style={{
+          width: TABLE_WIDTH,
           height: ROW_HEIGHT,
           borderColor: theme.tableBorder,
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingLeft: 5,
-          paddingRight: 5,
           borderBottomWidth: 1,
           opacity: isHidden ? 0.5 : undefined,
-          backgroundColor: monthUtils.isCurrentMonth(month)
-            ? theme.budgetCurrentMonth
-            : theme.budgetOtherMonth,
+          backgroundColor: rowBackgroundColor,
         }}
       >
         <ExpenseCategoryName
           category={category}
           onEditCategory={onEditCategory}
-          show3Columns={show3Columns}
+          backgroundColor={rowBackgroundColor}
         />
         <ExpenseCategoryCells
-          key={`${category.id}-${show3Columns}-${showBudgetedColumn}`}
+          key={category.id}
           category={category}
           month={month}
           onBudgetAction={onBudgetAction}
-          show3Columns={show3Columns}
-          showBudgetedColumn={showBudgetedColumn}
           onOpenBalanceMenu={onOpenBalanceMenu}
           onShowActivity={onShowActivity}
         />

@@ -24,8 +24,6 @@ export class MobileBudgetPage {
   readonly savedButton: Locator;
   readonly projectedSavingsButton: Locator;
   readonly overspentButton: Locator;
-  readonly budgetedHeaderButton: Locator;
-  readonly spentHeaderButton: Locator;
   readonly budgetTable: Locator;
   readonly categoryRows: Locator;
   readonly categoryNames: Locator;
@@ -72,13 +70,6 @@ export class MobileBudgetPage {
       name: 'Overspent',
     });
 
-    this.budgetedHeaderButton = this.budgetTableHeader.getByRole('button', {
-      name: 'Budgeted',
-    });
-    this.spentHeaderButton = this.budgetTableHeader.getByRole('button', {
-      name: 'Spent',
-    });
-
     this.budgetTable = page.getByTestId('budget-table');
 
     this.categoryRows = this.budgetTable
@@ -106,24 +97,6 @@ export class MobileBudgetPage {
 
   async waitFor(...options: Parameters<Locator['waitFor']>) {
     await this.budgetTable.waitFor(...options);
-  }
-
-  async toggleVisibleColumns({
-    maxAttempts = 3,
-  }: { maxAttempts?: number } = {}) {
-    for (let i = 0; i < maxAttempts; i++) {
-      if (await this.budgetedHeaderButton.isVisible()) {
-        await this.budgetedHeaderButton.click();
-        return;
-      }
-      if (await this.spentHeaderButton.isVisible()) {
-        await this.spentHeaderButton.click();
-        return;
-      }
-      await this.page.waitForTimeout(1000);
-    }
-
-    throw new Error('Budgeted/Spent columns could not be located on the page.');
   }
 
   async getSelectedMonth() {
@@ -204,14 +177,12 @@ export class MobileBudgetPage {
         ? `Open budget menu for ${categoryName} category`
         : `Show transactions for ${categoryName} category`;
 
-    let button = this.budgetTable.getByRole('button', { name: buttonSelector });
-
-    if (await button.isVisible()) {
-      return button;
-    }
-
-    await this.toggleVisibleColumns();
-    button = this.budgetTable.getByRole('button', { name: buttonSelector });
+    // Every column is rendered now -- the row scrolls sideways instead of
+    // swapping Budgeted for Spent -- so the button is always in the DOM.
+    // Playwright scrolls it into view on click.
+    const button = this.budgetTable.getByRole('button', {
+      name: buttonSelector,
+    });
 
     if (await button.isVisible()) {
       return button;

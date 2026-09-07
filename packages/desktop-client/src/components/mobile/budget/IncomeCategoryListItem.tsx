@@ -20,25 +20,32 @@ import { envelopeBudget, trackingBudget } from '#spreadsheet/bindings';
 
 import { BalanceCell } from './BalanceCell';
 import { BudgetCell } from './BudgetCell';
-import { getColumnWidth, ROW_HEIGHT } from './BudgetTable';
+import {
+  getColumnWidth,
+  getFrozenColumnStyle,
+  ROW_HEIGHT,
+  TABLE_WIDTH,
+} from './BudgetTable';
 
 type IncomeCategoryNameProps = {
   category: CategoryEntity;
   onEdit: (id: CategoryEntity['id']) => void;
+  backgroundColor: string;
 };
 
-function IncomeCategoryName({ category, onEdit }: IncomeCategoryNameProps) {
-  const sidebarColumnWidth = getColumnWidth({
-    isSidebar: true,
-    offset: -10,
-  });
+function IncomeCategoryName({
+  category,
+  onEdit,
+  backgroundColor,
+}: IncomeCategoryNameProps) {
+  const sidebarColumnWidth = getColumnWidth({ isSidebar: true });
   return (
     <View
       style={{
-        flex: 1,
+        ...getFrozenColumnStyle(backgroundColor),
         justifyContent: 'center',
         alignItems: 'flex-start',
-        width: sidebarColumnWidth,
+        paddingLeft: 5,
       }}
     >
       {/* Hidden drag button */}
@@ -239,6 +246,10 @@ export function IncomeCategoryListItem({
     return null;
   }
 
+  const rowBackgroundColor = monthUtils.isCurrentMonth(month)
+    ? theme.budgetCurrentMonth
+    : theme.budgetOtherMonth;
+
   return (
     <GridListItem
       textValue={category.name}
@@ -247,21 +258,23 @@ export function IncomeCategoryListItem({
     >
       <View
         style={{
+          width: TABLE_WIDTH,
           height: ROW_HEIGHT,
           borderColor: theme.tableBorder,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          paddingLeft: 5,
           paddingRight: 5,
           borderBottomWidth: 1,
           opacity: category.hidden ? 0.5 : undefined,
-          backgroundColor: monthUtils.isCurrentMonth(month)
-            ? theme.budgetCurrentMonth
-            : theme.budgetOtherMonth,
+          backgroundColor: rowBackgroundColor,
         }}
       >
-        <IncomeCategoryName category={category} onEdit={onEdit} />
+        <IncomeCategoryName
+          category={category}
+          onEdit={onEdit}
+          backgroundColor={rowBackgroundColor}
+        />
         <IncomeCategoryCells
           key={`${category.id}`}
           category={category}

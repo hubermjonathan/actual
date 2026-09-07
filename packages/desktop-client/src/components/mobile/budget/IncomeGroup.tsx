@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
-import { Card } from '@actual-app/components/card';
 import { SvgExpandArrow } from '@actual-app/components/icons/v0';
 import { SvgCheveronRight } from '@actual-app/components/icons/v1';
 import { Label } from '@actual-app/components/label';
@@ -22,7 +21,13 @@ import { useFormat } from '#hooks/useFormat';
 import { useSyncedPref } from '#hooks/useSyncedPref';
 import { envelopeBudget, trackingBudget } from '#spreadsheet/bindings';
 
-import { getColumnWidth, ROW_HEIGHT } from './BudgetTable';
+import { BudgetGroupCard } from './BudgetGroupCard';
+import {
+  getColumnWidth,
+  getFrozenColumnStyle,
+  ROW_HEIGHT,
+  TABLE_WIDTH,
+} from './BudgetTable';
 import { IncomeCategoryList } from './IncomeCategoryList';
 
 type IncomeGroupProps = {
@@ -83,7 +88,7 @@ export function IncomeGroup({
         <Label title={t('Received')} style={{ width: columnWidth }} />
       </View>
 
-      <Card style={{ marginTop: 0 }}>
+      <BudgetGroupCard style={{ marginTop: 0 }}>
         <IncomeGroupHeader
           group={categoryGroup}
           month={month}
@@ -97,7 +102,7 @@ export function IncomeGroup({
           onEditCategory={onEditCategory}
           onBudgetAction={onBudgetAction}
         />
-      </Card>
+      </BudgetGroupCard>
     </View>
   );
 }
@@ -119,29 +124,31 @@ function IncomeGroupHeader({
   onToggleCollapse,
   style,
 }: IncomeGroupHeaderProps) {
+  const rowBackgroundColor = monthUtils.isCurrentMonth(month)
+    ? theme.budgetHeaderCurrentMonth
+    : theme.budgetHeaderOtherMonth;
   return (
     <View
       data-testid="category-group-row"
       onClick={() => onToggleCollapse(group.id)}
       style={{
         cursor: 'pointer',
+        width: TABLE_WIDTH,
         height: ROW_HEIGHT,
         borderBottomWidth: 1,
         borderColor: theme.tableBorder,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingLeft: 5,
         paddingRight: 5,
         opacity: group.hidden ? 0.5 : undefined,
-        backgroundColor: monthUtils.isCurrentMonth(month)
-          ? theme.budgetHeaderCurrentMonth
-          : theme.budgetHeaderOtherMonth,
+        backgroundColor: rowBackgroundColor,
         ...style,
       }}
     >
       <IncomeGroupName
         group={group}
         onEdit={onEdit}
+        backgroundColor={rowBackgroundColor}
         isCollapsed={isCollapsed}
         onToggleCollapse={onToggleCollapse}
       />
@@ -155,6 +162,7 @@ type IncomeGroupNameProps = {
   onEdit: (id: CategoryGroupEntity['id']) => void;
   isCollapsed: (id: CategoryGroupEntity['id']) => boolean;
   onToggleCollapse: (id: CategoryGroupEntity['id']) => void;
+  backgroundColor: string;
 };
 
 function IncomeGroupName({
@@ -162,18 +170,17 @@ function IncomeGroupName({
   onEdit,
   isCollapsed,
   onToggleCollapse,
+  backgroundColor,
 }: IncomeGroupNameProps) {
-  const sidebarColumnWidth = getColumnWidth({
-    isSidebar: true,
-    offset: -13.5,
-  });
+  const sidebarColumnWidth = getColumnWidth({ isSidebar: true });
   return (
     <View
       style={{
-        flex: 1,
+        ...getFrozenColumnStyle(backgroundColor),
         flexDirection: 'row',
         justifyContent: 'flex-start',
-        width: sidebarColumnWidth,
+        alignItems: 'center',
+        paddingLeft: 5,
       }}
     >
       <Button
