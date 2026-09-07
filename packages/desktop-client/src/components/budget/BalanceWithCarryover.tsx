@@ -162,6 +162,14 @@ export function BalanceWithCarryover({
       }),
     [getBalanceAmountStyle, isDisabled],
   );
+  // Only worth a hover when something actually claims the balance.
+  const showBreakdown = hasReservationDetail(reservations ?? null);
+  // `reserved + allowance`: the part of the balance that already has a job.
+  // Null rather than zero when nothing does, so the row is left out entirely.
+  const committed = showBreakdown
+    ? (reservations?.reserved ?? 0) + (reservations?.allowance ?? 0)
+    : null;
+
   const GoalStatusDisplay = useCallback(
     (balanceValue, type) => {
       return (
@@ -248,14 +256,33 @@ export function BalanceWithCarryover({
               </Trans>
             )}
           </GoalTooltipRow>
+          {committed != null && (
+            <GoalTooltipRow>
+              <Trans>
+                <div>Committed:</div>
+                <div>
+                  {
+                    {
+                      amount: format(committed, 'financial'),
+                    } as TransObjectLiteral
+                  }
+                </div>
+              </Trans>
+            </GoalTooltipRow>
+          )}
         </>
       );
     },
-    [budgetedValue, format, getDifferenceToGoal, goalValue, longGoalValue, t],
+    [
+      budgetedValue,
+      committed,
+      format,
+      getDifferenceToGoal,
+      goalValue,
+      longGoalValue,
+      t,
+    ],
   );
-
-  // Only worth a hover when something actually claims the balance.
-  const showBreakdown = hasReservationDetail(reservations ?? null);
 
   return (
     <CellValue binding={balance} type="financial" {...props}>

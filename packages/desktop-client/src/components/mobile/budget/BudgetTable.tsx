@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import type { CSSProperties, ReactNode, Ref } from 'react';
+import React, { useCallback, useMemo } from 'react';
+import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
+import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { SvgCheveronRight } from '@actual-app/components/icons/v1';
+import { SvgViewShow } from '@actual-app/components/icons/v2';
 import { Label } from '@actual-app/components/label';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
@@ -23,7 +25,6 @@ import { PullToRefresh } from '#components/mobile/PullToRefresh';
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { CellValue } from '#components/spreadsheet/CellValue';
 import { SchedulesProvider } from '#hooks/useCachedSchedules';
-import type { FormatType } from '#hooks/useFormat';
 import { useFormat } from '#hooks/useFormat';
 import { useLocalPref } from '#hooks/useLocalPref';
 import { useSheetValue } from '#hooks/useSheetValue';
@@ -42,99 +43,34 @@ export const PILL_STYLE: CSSProperties = {
   backgroundColor: theme.pillBackgroundLight,
 };
 
-// The value columns scroll sideways under a frozen category name. At these
-// widths the three of them fit on a normal phone and never scroll; the
-// mechanism is what lets a very narrow screen show every column instead of
-// hiding one behind a toggle.
-const SIDEBAR_WIDTH = '35vw';
-const COLUMN_WIDTH = '20vw';
-const COLUMN_COUNT = 3;
-
-/** Full width of a row: the frozen name column plus every value column. */
-export const TABLE_WIDTH = `calc(${SIDEBAR_WIDTH} + ${COLUMN_COUNT} * ${COLUMN_WIDTH})`;
-
-/** Left and right inset of the card a group's rows sit in. */
-export const CARD_INSET = 5;
-
 export function getColumnWidth({
+  show3Columns = false,
   isSidebar = false,
+  offset = 0,
 }: {
+  show3Columns?: boolean;
   isSidebar?: boolean;
+  offset?: number;
 } = {}) {
-  return isSidebar ? SIDEBAR_WIDTH : COLUMN_WIDTH;
-}
-
-/** Style for a cell that stays put while the value columns scroll under it. */
-export function getFrozenColumnStyle(backgroundColor: string): CSSProperties {
-  return {
-    position: 'sticky',
-    left: 0,
-    zIndex: 1,
-    width: SIDEBAR_WIDTH,
-    flexShrink: 0,
-    backgroundColor,
-  };
-}
-
-/**
- * Keeps the header and the rows scrolled to the same column.
- *
- * They cannot share one scroll container: the header has to stay put while the
- * rows scroll vertically, so each owns its own horizontal scroller and this
- * mirrors one onto the other. The guard stops the two `scroll` handlers from
- * driving each other in a loop.
- */
-function useSyncedColumnScroll() {
-  const headerRef = useRef<HTMLDivElement>(null);
-  const bodyRef = useRef<HTMLDivElement>(null);
-  const isSyncing = useRef(false);
-
-  useEffect(() => {
-    const header = headerRef.current;
-    const body = bodyRef.current;
-    if (!header || !body) return;
-
-    const mirror = (from: HTMLDivElement, to: HTMLDivElement) => () => {
-      if (isSyncing.current) return;
-      isSyncing.current = true;
-      to.scrollLeft = from.scrollLeft;
-      // Released on the next frame, after the assignment above has fired the
-      // other element's scroll event.
-      requestAnimationFrame(() => {
-        isSyncing.current = false;
-      });
-    };
-
-    const onBodyScroll = mirror(body, header);
-    const onHeaderScroll = mirror(header, body);
-    body.addEventListener('scroll', onBodyScroll, { passive: true });
-    header.addEventListener('scroll', onHeaderScroll, { passive: true });
-
-    // Open on the right-hand end, so Balance -- the figure you check before
-    // spending -- is what you see without scrolling. Budgeted starts off screen.
-    const end = body.scrollWidth - body.clientWidth;
-    body.scrollLeft = end;
-    header.scrollLeft = end;
-
-    return () => {
-      body.removeEventListener('scroll', onBodyScroll);
-      header.removeEventListener('scroll', onHeaderScroll);
-    };
-  }, []);
-
-  return { headerRef, bodyRef };
+  // If show3Columns = 35vw | 20vw | 20vw | 20vw,
+  // Else = 45vw | 25vw | 25vw,
+  if (!isSidebar) {
+    return show3Columns ? `${20 + offset}vw` : `${25 + offset}vw`;
+  }
+  return show3Columns ? `${35 + offset}vw` : `${45 + offset}vw`;
 }
 
 type ToBudgetProps = {
   toBudget: Binding<'envelope-budget', 'to-budget'>;
   onPress: () => void;
+  show3Columns: boolean;
 };
 
-function ToBudget({ toBudget, onPress }: ToBudgetProps) {
+function ToBudget({ toBudget, onPress, show3Columns }: ToBudgetProps) {
   const { t } = useTranslation();
   const amount = useSheetValue(toBudget) ?? 0;
   const format = useFormat();
-  const sidebarColumnWidth = getColumnWidth({ isSidebar: true });
+  const sidebarColumnWidth = getColumnWidth({ show3Columns, isSidebar: true });
 
   return (
     <View
@@ -208,9 +144,10 @@ function ToBudget({ toBudget, onPress }: ToBudgetProps) {
 type SavedProps = {
   projected: boolean;
   onPress: () => void;
+  show3Columns: boolean;
 };
 
-function Saved({ projected, onPress }: SavedProps) {
+function Saved({ projected, onPress, show3Columns }: SavedProps) {
   const { t } = useTranslation();
   const binding = projected
     ? trackingBudget.totalBudgetedSaved
@@ -219,7 +156,7 @@ function Saved({ projected, onPress }: SavedProps) {
   const saved = useSheetValue<'tracking-budget', typeof binding>(binding) || 0;
   const format = useFormat();
   const isNegative = saved < 0;
-  const sidebarColumnWidth = getColumnWidth({ isSidebar: true });
+  const sidebarColumnWidth = getColumnWidth({ show3Columns, isSidebar: true });
 
   return (
     <View
@@ -310,6 +247,8 @@ type BudgetGroupsProps = {
   onEditCategory: (id: CategoryEntity['id']) => void;
   month: string;
   onBudgetAction: (month: string, action: string, args: unknown) => void;
+  showBudgetedColumn: boolean;
+  show3Columns: boolean;
   showHiddenCategories: boolean;
 };
 
@@ -319,6 +258,8 @@ function BudgetGroups({
   onEditCategory,
   month,
   onBudgetAction,
+  showBudgetedColumn,
+  show3Columns,
   showHiddenCategories,
 }: BudgetGroupsProps) {
   const { incomeGroup, expenseGroups } = useMemo(() => {
@@ -355,14 +296,16 @@ function BudgetGroups({
   return (
     <View
       data-testid="budget-groups"
-      style={{ flex: '1 0 auto', paddingBottom: 15 }}
+      style={{ flex: '1 0 auto', overflowY: 'auto', paddingBottom: 15 }}
     >
       <ExpenseGroupList
         categoryGroups={expenseGroups}
+        showBudgetedColumn={showBudgetedColumn}
         month={month}
         onEditCategoryGroup={onEditCategoryGroup}
         onEditCategory={onEditCategory}
         onBudgetAction={onBudgetAction}
+        show3Columns={show3Columns}
         showHiddenCategories={showHiddenCategories}
         isCollapsed={isCollapsed}
         onToggleCollapse={onToggleCollapse}
@@ -403,7 +346,18 @@ export function BudgetTable({
   onEditCategoryGroup,
   onEditCategory,
 }: BudgetTableProps) {
+  const { width } = useResponsive();
+  const show3Columns = width >= 300;
+
   // let editMode = false; // neuter editMode -- sorry, not rewriting drag-n-drop right now
+
+  const [showSpentColumn = false, setShowSpentColumnPref] = useLocalPref(
+    'mobile.showSpentColumn',
+  );
+
+  function toggleSpentColumn() {
+    setShowSpentColumnPref(!showSpentColumn);
+  }
 
   const [showHiddenCategories = false] = useLocalPref(
     'budget.showHiddenCategories',
@@ -412,16 +366,16 @@ export function BudgetTable({
   const [budgetType = 'envelope'] = useSyncedPref('budgetType');
 
   const schedulesQuery = useMemo(() => q('schedules').select('*'), []);
+  // Mobile has no MonthsContext -- one month is on screen, so it is passed in.
   const reservationMonths = useMemo(() => [month], [month]);
 
-  const { headerRef, bodyRef } = useSyncedColumnScroll();
-
   return (
-    // Mobile has no MonthsContext -- one month is on screen, so it is passed in.
     <ReservationsProvider months={reservationMonths}>
       <BudgetTableHeader
-        ref={headerRef}
         month={month}
+        show3Columns={show3Columns}
+        showSpentColumn={showSpentColumn}
+        toggleSpentColumn={toggleSpentColumn}
         onShowBudgetSummary={onShowBudgetSummary}
       />
       <PullToRefresh onRefresh={onRefresh}>
@@ -433,25 +387,19 @@ export function BudgetTable({
             paddingBottom: MOBILE_NAV_HEIGHT,
           }}
         >
-          <div
-            ref={bodyRef}
-            style={{ overflowX: 'auto', overflowY: 'hidden' }}
-            data-testid="budget-table-scroller"
-          >
-            <View style={{ width: TABLE_WIDTH }}>
-              <SchedulesProvider query={schedulesQuery}>
-                <BudgetGroups
-                  type={budgetType}
-                  categoryGroups={categoryGroups}
-                  showHiddenCategories={showHiddenCategories}
-                  month={month}
-                  onEditCategoryGroup={onEditCategoryGroup}
-                  onEditCategory={onEditCategory}
-                  onBudgetAction={onBudgetAction}
-                />
-              </SchedulesProvider>
-            </View>
-          </div>
+          <SchedulesProvider query={schedulesQuery}>
+            <BudgetGroups
+              type={budgetType}
+              categoryGroups={categoryGroups}
+              showBudgetedColumn={!showSpentColumn}
+              show3Columns={show3Columns}
+              showHiddenCategories={showHiddenCategories}
+              month={month}
+              onEditCategoryGroup={onEditCategoryGroup}
+              onEditCategory={onEditCategory}
+              onBudgetAction={onBudgetAction}
+            />
+          </SchedulesProvider>
         </View>
       </PullToRefresh>
     </ReservationsProvider>
@@ -459,47 +407,30 @@ export function BudgetTable({
 }
 
 type BudgetTableHeaderProps = {
-  ref: Ref<HTMLDivElement>;
+  show3Columns: boolean;
   month: string;
   onShowBudgetSummary: () => void;
+  showSpentColumn: boolean;
+  toggleSpentColumn: () => void;
 };
-
-type HeaderColumnProps = {
-  title: string;
-  children?: ReactNode;
-};
-
-/** One value column heading, with its month total underneath when there is one. */
-function HeaderColumn({ title, children }: HeaderColumnProps) {
-  return (
-    <View style={{ width: getColumnWidth() }}>
-      <View style={{ flex: 1, alignItems: 'flex-end' }}>
-        <AutoTextSize
-          as={Label}
-          minFontSizePx={6}
-          maxFontSizePx={12}
-          mode="oneline"
-          title={title}
-          style={{ color: theme.formInputText }}
-        />
-        {children}
-      </View>
-    </View>
-  );
-}
 
 function BudgetTableHeader({
-  ref,
+  show3Columns,
   month,
   onShowBudgetSummary,
+  showSpentColumn,
+  toggleSpentColumn,
 }: BudgetTableHeaderProps) {
   const { t } = useTranslation();
   const format = useFormat();
   const [budgetType = 'envelope'] = useSyncedPref('budgetType');
-
-  const backgroundColor = monthUtils.isCurrentMonth(month)
-    ? theme.budgetHeaderCurrentMonth
-    : theme.budgetHeaderOtherMonth;
+  const buttonStyle = {
+    padding: 0,
+    backgroundColor: 'transparent',
+    borderRadius: 'unset',
+  };
+  const sidebarColumnWidth = getColumnWidth({ show3Columns, isSidebar: true });
+  const columnWidth = getColumnWidth({ show3Columns });
 
   const amountStyle: CSSProperties = {
     ...styles.tnum,
@@ -509,122 +440,225 @@ function BudgetTableHeader({
     fontWeight: '500',
   };
 
-  const total = (value: number, type: FormatType | undefined) => (
-    <PrivacyFilter>
-      <AutoTextSize
-        key={value}
-        as={Text}
-        minFontSizePx={6}
-        maxFontSizePx={12}
-        mode="oneline"
-        style={amountStyle}
-      >
-        {format(value, type)}
-      </AutoTextSize>
-    </PrivacyFilter>
-  );
-
   return (
-    <div
-      ref={ref}
+    <View
       data-testid="budget-table-header"
-      // Scrolls with the rows below it; `useSyncedColumnScroll` keeps the two
-      // in step. The bar is hidden because the rows already show one.
       style={{
-        overflowX: 'auto',
-        overflowY: 'hidden',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         flexShrink: 0,
-        scrollbarWidth: 'none',
-        backgroundColor,
+        padding: '10px 15px',
+        paddingLeft: 10,
+        backgroundColor: monthUtils.isCurrentMonth(month)
+          ? theme.budgetHeaderCurrentMonth
+          : theme.budgetHeaderOtherMonth,
         borderBottomWidth: 1,
         borderColor: theme.tableBorder,
       }}
     >
       <View
         style={{
-          width: TABLE_WIDTH,
-          // Matches the inset of the card the rows sit in, so every value
-          // column lines up with its heading. Only on the left: a trailing
-          // margin does not count towards the rows' scroll width, so adding
-          // one here would leave the two scrollers 5px apart at the end.
-          marginLeft: CARD_INSET,
+          width: sidebarColumnWidth,
           flexDirection: 'row',
+          justifyContent: 'flex-start',
           alignItems: 'center',
-          padding: '10px 0',
         }}
       >
-        <View
-          style={{
-            ...getFrozenColumnStyle(backgroundColor),
-            flexDirection: 'row',
-            justifyContent: 'flex-start',
-            alignItems: 'center',
-            paddingLeft: CARD_INSET,
-          }}
-        >
-          {budgetType === 'tracking' ? (
-            <Saved
-              projected={month >= monthUtils.currentMonth()}
-              onPress={onShowBudgetSummary}
-            />
-          ) : (
-            <ToBudget
-              toBudget={envelopeBudget.toBudget}
-              onPress={onShowBudgetSummary}
-            />
-          )}
-        </View>
-
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'flex-end',
-            alignItems: 'center',
-            flex: 1,
-          }}
-        >
-          <HeaderColumn title={t('Budgeted')}>
-            <CellValue<'envelope-budget' | 'tracking-budget', 'total-budgeted'>
-              binding={
-                budgetType === 'tracking'
-                  ? trackingBudget.totalBudgetedExpense
-                  : envelopeBudget.totalBudgeted
-              }
-              type="financial"
-            >
-              {({ type, value }) =>
-                total(budgetType === 'tracking' ? value : -value, type)
-              }
-            </CellValue>
-          </HeaderColumn>
-
-          <HeaderColumn title={t('Spent')}>
-            <CellValue<'envelope-budget' | 'tracking-budget', 'total-spent'>
-              binding={
-                budgetType === 'tracking'
-                  ? trackingBudget.totalSpent
-                  : envelopeBudget.totalSpent
-              }
-              type="financial"
-            >
-              {({ type, value }) => total(value, type)}
-            </CellValue>
-          </HeaderColumn>
-
-          <HeaderColumn title={t('Balance')}>
-            <CellValue<'envelope-budget' | 'tracking-budget', 'total-leftover'>
-              binding={
-                budgetType === 'tracking'
-                  ? trackingBudget.totalLeftover
-                  : envelopeBudget.totalBalance
-              }
-              type="financial"
-            >
-              {({ type, value }) => total(value, type)}
-            </CellValue>
-          </HeaderColumn>
-        </View>
+        {budgetType === 'tracking' ? (
+          <Saved
+            projected={month >= monthUtils.currentMonth()}
+            onPress={onShowBudgetSummary}
+            show3Columns={show3Columns}
+          />
+        ) : (
+          <ToBudget
+            toBudget={envelopeBudget.toBudget}
+            onPress={onShowBudgetSummary}
+            show3Columns={show3Columns}
+          />
+        )}
       </View>
-    </div>
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+        }}
+      >
+        {(show3Columns || !showSpentColumn) && (
+          <CellValue<'envelope-budget' | 'tracking-budget', 'total-budgeted'>
+            binding={
+              budgetType === 'tracking'
+                ? trackingBudget.totalBudgetedExpense
+                : envelopeBudget.totalBudgeted
+            }
+            type="financial"
+          >
+            {({ type: formatType, value }) => (
+              <Button
+                variant="bare"
+                isDisabled={show3Columns}
+                onPress={toggleSpentColumn}
+                style={{
+                  ...buttonStyle,
+                  width: columnWidth,
+                }}
+              >
+                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {!show3Columns && (
+                      <SvgViewShow
+                        width={12}
+                        height={12}
+                        style={{
+                          flexShrink: 0,
+                          color: theme.pageTextSubdued,
+                          marginRight: 5,
+                        }}
+                      />
+                    )}
+                    <View>
+                      <AutoTextSize
+                        as={Label}
+                        minFontSizePx={8}
+                        maxFontSizePx={12}
+                        mode="multiline"
+                        title={t('Budgeted')}
+                        style={{ color: theme.formInputText, paddingRight: 4 }}
+                      />
+                    </View>
+                  </View>
+                  <View>
+                    <PrivacyFilter>
+                      <AutoTextSize
+                        key={value}
+                        as={Text}
+                        minFontSizePx={6}
+                        maxFontSizePx={12}
+                        mode="oneline"
+                        style={{
+                          ...amountStyle,
+                          paddingRight: 4,
+                        }}
+                      >
+                        {format(
+                          budgetType === 'tracking' ? value : -value,
+                          formatType,
+                        )}
+                      </AutoTextSize>
+                    </PrivacyFilter>
+                  </View>
+                </View>
+              </Button>
+            )}
+          </CellValue>
+        )}
+        {(show3Columns || showSpentColumn) && (
+          <CellValue<'envelope-budget' | 'tracking-budget', 'total-spent'>
+            binding={
+              budgetType === 'tracking'
+                ? trackingBudget.totalSpent
+                : envelopeBudget.totalSpent
+            }
+            type="financial"
+          >
+            {({ type, value }) => (
+              <Button
+                variant="bare"
+                isDisabled={show3Columns}
+                onPress={toggleSpentColumn}
+                style={{
+                  ...buttonStyle,
+                  width: columnWidth,
+                }}
+              >
+                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {!show3Columns && (
+                      <SvgViewShow
+                        width={12}
+                        height={12}
+                        style={{
+                          flexShrink: 0,
+                          color: theme.pageTextSubdued,
+                          marginRight: 5,
+                        }}
+                      />
+                    )}
+                    <View>
+                      <AutoTextSize
+                        as={Label}
+                        minFontSizePx={6}
+                        maxFontSizePx={12}
+                        mode="oneline"
+                        title={t('Spent')}
+                        style={{ color: theme.formInputText, paddingRight: 4 }}
+                      />
+                    </View>
+                  </View>
+                  <View>
+                    <PrivacyFilter>
+                      <AutoTextSize
+                        key={value}
+                        as={Text}
+                        minFontSizePx={6}
+                        maxFontSizePx={12}
+                        mode="oneline"
+                        style={{
+                          ...amountStyle,
+                          paddingRight: 4,
+                        }}
+                      >
+                        {format(value, type)}
+                      </AutoTextSize>
+                    </PrivacyFilter>
+                  </View>
+                </View>
+              </Button>
+            )}
+          </CellValue>
+        )}
+        <CellValue<'envelope-budget' | 'tracking-budget', 'total-leftover'>
+          binding={
+            budgetType === 'tracking'
+              ? trackingBudget.totalLeftover
+              : envelopeBudget.totalBalance
+          }
+          type="financial"
+        >
+          {({ type, value }) => (
+            <View style={{ width: columnWidth }}>
+              <View style={{ flex: 1, alignItems: 'flex-end !important' }}>
+                <View>
+                  <AutoTextSize
+                    as={Label}
+                    minFontSizePx={6}
+                    maxFontSizePx={12}
+                    mode="oneline"
+                    title={t('Balance')}
+                    style={{ color: theme.formInputText }}
+                  />
+                </View>
+                <View>
+                  <PrivacyFilter>
+                    <AutoTextSize
+                      key={value}
+                      as={Text}
+                      minFontSizePx={6}
+                      maxFontSizePx={12}
+                      mode="oneline"
+                      style={amountStyle}
+                    >
+                      {format(value, type)}
+                    </AutoTextSize>
+                  </PrivacyFilter>
+                </View>
+              </View>
+            </View>
+          )}
+        </CellValue>
+      </View>
+    </View>
   );
 }

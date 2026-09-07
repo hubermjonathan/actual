@@ -33,6 +33,7 @@ type BalanceCellProps = {
    * category.
    */
   reservations?: CategoryReservationsResult | null;
+  show3Columns?: boolean;
   onPress?: () => void;
   'aria-label'?: string;
 };
@@ -41,12 +42,15 @@ export function BalanceCell({
   binding,
   category,
   reservations,
+  show3Columns,
   onPress,
   'aria-label': ariaLabel,
 }: BalanceCellProps) {
   const { t } = useTranslation();
   const [budgetType = 'envelope'] = useSyncedPref('budgetType');
-  const columnWidth = getColumnWidth();
+  const columnWidth = getColumnWidth({
+    show3Columns,
+  });
 
   const goal =
     budgetType === 'tracking'

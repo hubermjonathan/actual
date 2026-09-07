@@ -27,34 +27,31 @@ import { envelopeBudget, trackingBudget } from '#spreadsheet/bindings';
 
 import { BalanceCell } from './BalanceCell';
 import { BudgetCell } from './BudgetCell';
-import {
-  getColumnWidth,
-  getFrozenColumnStyle,
-  ROW_HEIGHT,
-  TABLE_WIDTH,
-} from './BudgetTable';
+import { getColumnWidth, ROW_HEIGHT } from './BudgetTable';
 import { SpentCell } from './SpentCell';
 
 type ExpenseCategoryNameProps = {
   category: CategoryEntity;
   onEditCategory: (id: CategoryEntity['id']) => void;
-  backgroundColor: string;
+  show3Columns: boolean;
 };
 
 function ExpenseCategoryName({
   category,
   onEditCategory,
-  backgroundColor,
+  show3Columns,
 }: ExpenseCategoryNameProps) {
-  const sidebarColumnWidth = getColumnWidth({ isSidebar: true });
+  const sidebarColumnWidth = getColumnWidth({
+    show3Columns,
+    isSidebar: true,
+  });
 
   return (
     <View
       style={{
-        ...getFrozenColumnStyle(backgroundColor),
+        flex: 1,
         justifyContent: 'center',
         alignItems: 'flex-start',
-        paddingLeft: 5,
       }}
     >
       {/* Hidden drag button */}
@@ -108,6 +105,8 @@ type ExpenseCategoryCellsProps = {
   category: CategoryEntity;
   month: string;
   onBudgetAction: (month: string, action: string, args: unknown) => void;
+  show3Columns: boolean;
+  showBudgetedColumn: boolean;
   onOpenBalanceMenu: () => void;
   onShowActivity: () => void;
 };
@@ -116,11 +115,16 @@ function ExpenseCategoryCells({
   category,
   month,
   onBudgetAction,
+  show3Columns,
+  showBudgetedColumn,
   onOpenBalanceMenu,
   onShowActivity,
 }: ExpenseCategoryCellsProps) {
   const { t } = useTranslation();
-  const columnWidth = getColumnWidth();
+  const columnWidth = getColumnWidth({
+    show3Columns,
+    isSidebar: false,
+  });
   const reservations = useCategoryReservations(month, category.id);
   const [budgetType = 'envelope'] = useSyncedPref('budgetType');
 
@@ -145,11 +149,11 @@ function ExpenseCategoryCells({
         justifyContent: 'flex-end',
         alignItems: 'center',
         flexDirection: 'row',
-        flex: 1,
       }}
     >
       <View
         style={{
+          ...(!show3Columns && !showBudgetedColumn && { display: 'none' }),
           width: columnWidth,
           justifyContent: 'center',
           alignItems: 'flex-end',
@@ -165,6 +169,7 @@ function ExpenseCategoryCells({
       </View>
       <View
         style={{
+          ...(!show3Columns && showBudgetedColumn && { display: 'none' }),
           width: columnWidth,
           justifyContent: 'center',
           alignItems: 'flex-end',
@@ -174,6 +179,7 @@ function ExpenseCategoryCells({
           binding={spent}
           category={category}
           month={month}
+          show3Columns={show3Columns}
           onPress={onShowActivity}
         />
       </View>
@@ -188,6 +194,7 @@ function ExpenseCategoryCells({
           binding={balance}
           category={category}
           reservations={reservations}
+          show3Columns={show3Columns}
           onPress={onOpenBalanceMenu}
           aria-label={t('Open balance menu for {{categoryName}} category', {
             categoryName: category.name,
@@ -204,6 +211,8 @@ type ExpenseCategoryListItemProps = ComponentPropsWithoutRef<
   month: string;
   isHidden: boolean;
   style?: CSSProperties;
+  show3Columns: boolean;
+  showBudgetedColumn: boolean;
   onEditCategory: (id: CategoryEntity['id']) => void;
   onBudgetAction: (month: string, action: string, args: unknown) => void;
 };
@@ -213,6 +222,8 @@ export function ExpenseCategoryListItem({
   isHidden,
   onEditCategory,
   onBudgetAction,
+  show3Columns,
+  showBudgetedColumn,
   ...props
 }: ExpenseCategoryListItemProps) {
   const { value: category } = props;
@@ -408,10 +419,6 @@ export function ExpenseCategoryListItem({
     return null;
   }
 
-  const rowBackgroundColor = monthUtils.isCurrentMonth(month)
-    ? theme.budgetCurrentMonth
-    : theme.budgetOtherMonth;
-
   return (
     <GridListItem
       textValue={category.name}
@@ -420,26 +427,32 @@ export function ExpenseCategoryListItem({
     >
       <View
         style={{
-          width: TABLE_WIDTH,
           height: ROW_HEIGHT,
           borderColor: theme.tableBorder,
           flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingLeft: 5,
+          paddingRight: 5,
           borderBottomWidth: 1,
           opacity: isHidden ? 0.5 : undefined,
-          backgroundColor: rowBackgroundColor,
+          backgroundColor: monthUtils.isCurrentMonth(month)
+            ? theme.budgetCurrentMonth
+            : theme.budgetOtherMonth,
         }}
       >
         <ExpenseCategoryName
           category={category}
           onEditCategory={onEditCategory}
-          backgroundColor={rowBackgroundColor}
+          show3Columns={show3Columns}
         />
         <ExpenseCategoryCells
-          key={category.id}
+          key={`${category.id}-${show3Columns}-${showBudgetedColumn}`}
           category={category}
           month={month}
           onBudgetAction={onBudgetAction}
+          show3Columns={show3Columns}
+          showBudgetedColumn={showBudgetedColumn}
           onOpenBalanceMenu={onOpenBalanceMenu}
           onShowActivity={onShowActivity}
         />

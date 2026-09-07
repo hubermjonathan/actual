@@ -25,6 +25,7 @@ type SpentCellProps = {
   binding: Binding<'envelope-budget' | 'tracking-budget', 'sum-amount'>;
   category: CategoryEntity;
   month: string;
+  show3Columns?: boolean;
   onPress?: () => void;
 };
 
@@ -32,11 +33,14 @@ export function SpentCell({
   binding,
   category,
   month,
+  show3Columns,
   onPress,
 }: SpentCellProps) {
   const { t } = useTranslation();
   const format = useFormat();
-  const columnWidth = getColumnWidth();
+  const columnWidth = getColumnWidth({
+    show3Columns,
+  });
 
   const { schedule, scheduleStatus, isScheduleRecurring } =
     useCategoryScheduleGoalTemplateIndicator({
