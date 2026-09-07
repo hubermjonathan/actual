@@ -20,8 +20,8 @@ import { BudgetCategories } from './BudgetCategories';
 import { BudgetSummaries } from './BudgetSummaries';
 import { BudgetTotals } from './BudgetTotals';
 import { MonthsProvider } from './MonthsContext';
-import { ReservationsProvider } from './ReservationsContext';
 import type { MonthBounds } from './MonthsContext';
+import { ReservationsProvider } from './ReservationsContext';
 import {
   findSortDown,
   findSortUp,
@@ -290,50 +290,50 @@ export function BudgetTable(props: BudgetTableProps) {
         monthBounds={monthBounds}
         type={type}
       >
-       <ReservationsProvider>
-        <BudgetTotals
-          toggleHiddenCategories={toggleHiddenCategories}
-          expandAllCategories={expandAllCategories}
-          collapseAllCategories={collapseAllCategories}
-        />
-        <View
-          ref={scrollContainerRef}
-          data-testid="budget-table-scroll-container"
-          style={{
-            overflowY: 'scroll',
-            overflowAnchor: 'none',
-            flex: 1,
-            paddingLeft: 5,
-            paddingRight: 5,
-          }}
-        >
+        <ReservationsProvider>
+          <BudgetTotals
+            toggleHiddenCategories={toggleHiddenCategories}
+            expandAllCategories={expandAllCategories}
+            collapseAllCategories={collapseAllCategories}
+          />
           <View
+            ref={scrollContainerRef}
+            data-testid="budget-table-scroll-container"
             style={{
-              flexShrink: 0,
+              overflowY: 'scroll',
+              overflowAnchor: 'none',
+              flex: 1,
+              paddingLeft: 5,
+              paddingRight: 5,
             }}
-            onKeyDown={onKeyDown}
           >
-            <SchedulesProvider query={schedulesQuery}>
-              <BudgetCategories
-                categoryGroups={categoryGroups}
-                editingCell={editing}
-                onEditMonth={onEditMonth}
-                onEditName={onEditName}
-                onSaveCategory={onSaveCategory}
-                onSaveGroup={onSaveGroup}
-                onDeleteCategory={onDeleteCategory}
-                onDeleteGroup={onDeleteGroup}
-                onReorderCategory={_onReorderCategory}
-                onReorderGroup={_onReorderGroup}
-                onBudgetAction={onBudgetAction}
-                onShowActivity={_onShowActivity}
-                onApplyBudgetTemplatesInGroup={onApplyBudgetTemplatesInGroup}
-                onSortCategories={onSortCategories}
-              />
-            </SchedulesProvider>
+            <View
+              style={{
+                flexShrink: 0,
+              }}
+              onKeyDown={onKeyDown}
+            >
+              <SchedulesProvider query={schedulesQuery}>
+                <BudgetCategories
+                  categoryGroups={categoryGroups}
+                  editingCell={editing}
+                  onEditMonth={onEditMonth}
+                  onEditName={onEditName}
+                  onSaveCategory={onSaveCategory}
+                  onSaveGroup={onSaveGroup}
+                  onDeleteCategory={onDeleteCategory}
+                  onDeleteGroup={onDeleteGroup}
+                  onReorderCategory={_onReorderCategory}
+                  onReorderGroup={_onReorderGroup}
+                  onBudgetAction={onBudgetAction}
+                  onShowActivity={_onShowActivity}
+                  onApplyBudgetTemplatesInGroup={onApplyBudgetTemplatesInGroup}
+                  onSortCategories={onSortCategories}
+                />
+              </SchedulesProvider>
+            </View>
           </View>
-        </View>
-       </ReservationsProvider>
+        </ReservationsProvider>
       </MonthsProvider>
     </View>
   );

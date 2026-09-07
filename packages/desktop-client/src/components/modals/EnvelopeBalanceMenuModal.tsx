@@ -11,6 +11,11 @@ import {
   BalanceWithCarryover,
   CarryoverIndicator,
 } from '#components/budget/BalanceWithCarryover';
+import {
+  CategoryReservationsProvider,
+  ReservationsBreakdownSection,
+  useCategoryReservationsValue,
+} from '#components/budget/CategoryReservationsSection';
 import { BalanceMenu } from '#components/budget/envelope/BalanceMenu';
 import {
   Modal,
@@ -23,17 +28,33 @@ import { useCategory } from '#hooks/useCategory';
 import type { Modal as ModalType } from '#modals/modalsSlice';
 import { envelopeBudget } from '#spreadsheet/bindings';
 
-type EnvelopeBalanceMenuModalProps = Omit<
-  Extract<ModalType, { name: 'envelope-balance-menu' }>['options'],
-  'month'
->;
+type EnvelopeBalanceMenuModalProps = Extract<
+  ModalType,
+  { name: 'envelope-balance-menu' }
+>['options'];
 
+/**
+ * Modals render at the app root, outside the budget table's provider, so this
+ * one carries its own -- and everything inside reads the same figures the
+ * budget row shows.
+ */
 export function EnvelopeBalanceMenuModal({
+  month,
+  ...props
+}: EnvelopeBalanceMenuModalProps) {
+  return (
+    <CategoryReservationsProvider month={month} categoryId={props.categoryId}>
+      <EnvelopeBalanceMenuModalInner {...props} month={month} />
+    </CategoryReservationsProvider>
+  );
+}
+
+function EnvelopeBalanceMenuModalInner({
   categoryId,
   onCarryover,
   onTransfer,
   onCover,
-}: EnvelopeBalanceMenuModalProps) {
+}: Omit<EnvelopeBalanceMenuModalProps, 'month'> & { month: string }) {
   const defaultMenuItemStyle: CSSProperties = {
     ...styles.mobileMenuItem,
     color: theme.menuItemText,
@@ -42,6 +63,7 @@ export function EnvelopeBalanceMenuModal({
   };
 
   const { data: category } = useCategory(categoryId);
+  const reservations = useCategoryReservationsValue();
 
   if (!category) {
     return null;
@@ -73,6 +95,7 @@ export function EnvelopeBalanceMenuModal({
             <BalanceWithCarryover
               isDisabled
               shouldInlineGoalStatus
+              reservations={reservations}
               carryover={envelopeBudget.catCarryover(categoryId)}
               balance={envelopeBudget.catBalance(categoryId)}
               goal={envelopeBudget.catGoal(categoryId)}
@@ -101,6 +124,9 @@ export function EnvelopeBalanceMenuModal({
               )}
             </BalanceWithCarryover>
           </View>
+          {/* Touch has no hover, so what the desktop shows in a tooltip lives
+              here instead. */}
+          <ReservationsBreakdownSection />
           <BalanceMenu
             categoryId={categoryId}
             getItemStyle={() => defaultMenuItemStyle}

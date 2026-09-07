@@ -26,6 +26,11 @@ const ReservationsContext = createContext<Map<string, ReservationsByCategory>>(
 
 type ReservationsProviderProps = {
   children: ReactNode;
+  /**
+   * Months to load. Defaults to the visible months from `MonthsContext`, which
+   * mobile does not have — it shows one month and passes it explicitly.
+   */
+  months?: string[];
 };
 
 /**
@@ -39,12 +44,15 @@ type ReservationsProviderProps = {
  * changes without any cache to invalidate — at the cost of refetching when the
  * visible months change.
  */
-export function ReservationsProvider({ children }: ReservationsProviderProps) {
+export function ReservationsProvider({
+  children,
+  months: explicitMonths,
+}: ReservationsProviderProps) {
   const isGoalTemplatesEnabled = useFeatureFlag('goalTemplatesEnabled');
   const monthsContext = useContext(MonthsContext);
   const months = useMemo(
-    () => monthsContext?.months ?? [],
-    [monthsContext?.months],
+    () => explicitMonths ?? monthsContext?.months ?? [],
+    [explicitMonths, monthsContext?.months],
   );
   const [byMonth, setByMonth] = useState<Map<string, ReservationsByCategory>>(
     new Map(),

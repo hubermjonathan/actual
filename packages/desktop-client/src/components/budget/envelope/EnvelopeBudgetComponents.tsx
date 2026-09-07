@@ -12,16 +12,13 @@ import { Popover } from '@actual-app/components/popover';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
-import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
-import type { CategoryReservationsResult } from '@actual-app/core/server/budget/goal-template';
 import * as monthUtils from '@actual-app/core/shared/months';
 import { css } from '@emotion/css';
 
 import { BalanceWithCarryover } from '#components/budget/BalanceWithCarryover';
 import {
   useCategoryReservations,
-  useAllowanceTotal,
   useReservedTotal,
 } from '#components/budget/ReservationsContext';
 import { makeAmountGrey } from '#components/budget/util';
@@ -115,11 +112,6 @@ export const BudgetTotalsMonth = memo(function BudgetTotalsMonth() {
       </View>
       <View style={headerLabelStyle}>
         <Text style={{ color: theme.tableHeaderText }}>
-          <Trans>Committed</Trans>
-        </Text>
-      </View>
-      <View style={headerLabelStyle}>
-        <Text style={{ color: theme.tableHeaderText }}>
           <Trans>Balance</Trans>
         </Text>
         <EnvelopeCellValue
@@ -186,7 +178,6 @@ export const ExpenseGroupMonth = memo(function ExpenseGroupMonth({
           type: 'financial',
         }}
       />
-      <GroupCommitted group={group} month={month} />
       <GroupBalanceLessReserved group={group} month={month} />
     </View>
   );
@@ -490,7 +481,6 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
           </EnvelopeCellValue>
         </View>
       </Field>
-      <CommittedCell reservations={reservations} />
       <Field
         ref={balanceMenuTriggerRef}
         name="balance"
@@ -525,7 +515,7 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
             goal={envelopeBudget.catGoal(category.id)}
             budgeted={envelopeBudget.catBudgeted(category.id)}
             longGoal={envelopeBudget.catLongGoal(category.id)}
-            reserved={reservations?.reserved ?? 0}
+            reservations={reservations}
             tooltipDisabled={balanceMenuOpen}
           />
         </Button>
@@ -587,224 +577,6 @@ function GroupBalanceLessReserved({ group, month }: GroupBalanceProps) {
         {format((balance ?? 0) - reserved, 'financial')}
       </Text>
     </Field>
-  );
-}
-
-type CommittedCellProps = {
-  reservations: CategoryReservationsResult | null;
-};
-
-/**
- * Money in this balance that already has a job — owed to a future cost, or set
- * aside as this month's allowance.
- *
- * The two are on different horizons, so the split is on the hover; the single
- * figure answers the question the row is scanned for, which is how much of the
- * balance is not spare.
- */
-function CommittedCell({ reservations }: CommittedCellProps) {
-  const format = useFormat();
-  const committed =
-    (reservations?.reserved ?? 0) + (reservations?.allowance ?? 0);
-
-  const cell = (
-    <Text
-      style={{
-        ...styles.tnum,
-        color:
-          reservations?.status === 'behind'
-            ? theme.templateNumberUnderFunded
-            : reservations?.status === 'funded'
-              ? theme.templateNumberFunded
-              : theme.tableTextSubdued,
-      }}
-    >
-      {format(committed, 'financial')}
-    </Text>
-  );
-
-  return (
-    <Field name="committed" width="flex" style={{ textAlign: 'right' }}>
-      {hasReservationDetail(reservations) ? (
-        <Tooltip
-          content={<ReservationsBreakdown reservations={reservations} />}
-          style={{ ...styles.tooltip, borderRadius: '0px 5px 5px 0px' }}
-          placement="bottom"
-          triggerProps={{ delay: 750 }}
-        >
-          {cell}
-        </Tooltip>
-      ) : (
-        cell
-      )}
-    </Field>
-  );
-}
-
-type GroupCommittedProps = {
-  group: CategoryGroupMonthProps['group'];
-  month: string;
-};
-
-/** A group's committed total is the sum of its categories' commitments. */
-function GroupCommitted({ group, month }: GroupCommittedProps) {
-  const format = useFormat();
-  const categoryIds = useMemo(
-    () => (group.categories ?? []).map(c => c.id),
-    [group.categories],
-  );
-  const reserved = useReservedTotal(month, categoryIds) ?? 0;
-  const allowance = useAllowanceTotal(month, categoryIds) ?? 0;
-
-  return (
-    <Field name="committed" width="flex" style={{ textAlign: 'right' }}>
-      <Text
-        style={{
-          ...styles.tnum,
-          fontWeight: 600,
-          color: theme.tableTextSubdued,
-        }}
-      >
-        {format(reserved + allowance, 'financial')}
-      </Text>
-    </Field>
-  );
-}
-
-function hasReservationDetail(r: CategoryReservationsResult | null) {
-  return !!r && (r.reserved > 0 || r.allowance > 0);
-}
-
-type ReservationsBreakdownProps = {
-  reservations: CategoryReservationsResult | null;
-};
-
-function BreakdownRow({
-  label,
-  amount,
-  bold,
-  color,
-}: {
-  label: string;
-  amount: string;
-  bold?: boolean;
-  color?: string;
-}) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 16,
-        fontWeight: bold ? 600 : undefined,
-        color,
-      }}
-    >
-      <Text>{label}</Text>
-      <Text style={styles.tnum}>{amount}</Text>
-    </View>
-  );
-}
-
-/**
- * How a category's balance divides up.
- *
- * `Reserved` is owed to a future cost and should not be spent yet. `Allowance`
- * is for this month — spendable, that is its purpose, but already committed.
- * What is left over is spare.
- */
-function ReservationsBreakdown({ reservations }: ReservationsBreakdownProps) {
-  const { t } = useTranslation();
-  const format = useFormat();
-  if (!reservations) return null;
-
-  const STATUS_LABEL: Record<string, string> = {
-    behind: t('Shortfall of {{amount}}', {
-      amount: format(reservations.shortfall, 'financial'),
-    }),
-    ahead: t('Ahead by {{amount}}', {
-      amount: format(reservations.spare, 'financial'),
-    }),
-    funded: t('Fully funded'),
-    onPace: t('On pace'),
-  };
-
-  return (
-    <View style={{ padding: 10, minWidth: 220 }}>
-      {reservations.reserved > 0 && (
-        <>
-          <BreakdownRow
-            label={t('Reserved')}
-            amount={format(reservations.reserved, 'financial')}
-          />
-          {reservations.claims
-            .filter(c => c.accrued > 0)
-            .sort((a, b) => b.accrued - a.accrued)
-            .map(c => (
-              <View key={c.name} style={{ paddingLeft: 12, opacity: 0.75 }}>
-                <BreakdownRow
-                  label={c.name}
-                  amount={
-                    c.onTrack
-                      ? format(c.reserved, 'financial')
-                      : `${format(c.reserved, 'financial')} / ${format(
-                          c.accrued,
-                          'financial',
-                        )}`
-                  }
-                  color={
-                    c.onTrack ? undefined : theme.templateNumberUnderFunded
-                  }
-                />
-              </View>
-            ))}
-        </>
-      )}
-      {reservations.allowance > 0 && (
-        <>
-          <BreakdownRow
-            label={t('Allowance')}
-            amount={format(reservations.allowance, 'financial')}
-          />
-          {reservations.allowances.map(a => (
-            <View key={a.label} style={{ paddingLeft: 12, opacity: 0.75 }}>
-              <BreakdownRow
-                label={a.label}
-                amount={format(a.amount, 'financial')}
-              />
-            </View>
-          ))}
-        </>
-      )}
-      <View
-        style={{
-          borderTop: `1px solid ${theme.tableBorderSeparator}`,
-          marginTop: 6,
-          paddingTop: 6,
-        }}
-      >
-        <BreakdownRow
-          label={t('Spare')}
-          amount={format(reservations.spare, 'financial')}
-          bold
-        />
-        {reservations.status && (
-          <Text
-            style={{
-              marginTop: 4,
-              color:
-                reservations.status === 'behind'
-                  ? theme.templateNumberUnderFunded
-                  : reservations.status === 'funded'
-                    ? theme.templateNumberFunded
-                    : theme.pageTextSubdued,
-            }}
-          >
-            {STATUS_LABEL[reservations.status]}
-          </Text>
-        )}
-      </View>
-    </View>
   );
 }
 

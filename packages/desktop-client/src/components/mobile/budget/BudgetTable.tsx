@@ -19,6 +19,7 @@ import type {
 } from '@actual-app/core/types/models';
 import { AutoTextSize } from 'auto-text-size';
 
+import { ReservationsProvider } from '#components/budget/ReservationsContext';
 import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
 import { PullToRefresh } from '#components/mobile/PullToRefresh';
 import { PrivacyFilter } from '#components/PrivacyFilter';
@@ -365,9 +366,11 @@ export function BudgetTable({
   const [budgetType = 'envelope'] = useSyncedPref('budgetType');
 
   const schedulesQuery = useMemo(() => q('schedules').select('*'), []);
+  // Mobile has no MonthsContext -- one month is on screen, so it is passed in.
+  const reservationMonths = useMemo(() => [month], [month]);
 
   return (
-    <>
+    <ReservationsProvider months={reservationMonths}>
       <BudgetTableHeader
         month={month}
         show3Columns={show3Columns}
@@ -399,7 +402,7 @@ export function BudgetTable({
           </SchedulesProvider>
         </View>
       </PullToRefresh>
-    </>
+    </ReservationsProvider>
   );
 }
 

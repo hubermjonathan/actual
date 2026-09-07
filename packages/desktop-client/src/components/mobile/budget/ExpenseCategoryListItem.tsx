@@ -14,6 +14,7 @@ import type { BudgetType } from '@actual-app/core/server/prefs';
 import * as monthUtils from '@actual-app/core/shared/months';
 import type { CategoryEntity } from '@actual-app/core/types/models';
 
+import { useCategoryReservations } from '#components/budget/ReservationsContext';
 import { useCategoriesById } from '#hooks/useCategories';
 import { useFormat } from '#hooks/useFormat';
 import { useNavigate } from '#hooks/useNavigate';
@@ -124,6 +125,7 @@ function ExpenseCategoryCells({
     show3Columns,
     isSidebar: false,
   });
+  const reservations = useCategoryReservations(month, category.id);
   const [budgetType = 'envelope'] = useSyncedPref('budgetType');
 
   const budgeted =
@@ -191,6 +193,7 @@ function ExpenseCategoryCells({
         <BalanceCell
           binding={balance}
           category={category}
+          reservations={reservations}
           show3Columns={show3Columns}
           onPress={onOpenBalanceMenu}
           aria-label={t('Open balance menu for {{categoryName}} category', {

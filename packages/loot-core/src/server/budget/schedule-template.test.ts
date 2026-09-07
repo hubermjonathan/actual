@@ -801,5 +801,4 @@ describe('runSchedule', () => {
     expect(pooled.to_budget).toBe(5000);
     expect(fixed.to_budget).toBe(10000);
   });
-
 });
