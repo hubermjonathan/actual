@@ -367,6 +367,74 @@ describe('API CRUD operations', () => {
     );
   });
 
+  // apis: getReservations
+  test('Reservations: report a category allowance as committed', async () => {
+    const month = '2023-10';
+    global.currentMonth = month;
+
+    const groupId = await api.createCategoryGroup({ name: 'reservations' });
+    const categoryId = await api.createCategory({
+      name: 'test-reservations',
+      group_id: groupId,
+    });
+
+    // An allowance is money to spend this month, so it is committed rather
+    // than spare — even with nothing reserved against a future cost.
+    await api.updateNote(categoryId, '#template 100 [test-allowance]');
+    // Reservations read the templates stored on the category, which the app
+    // refreshes when a note is saved. Nothing does that for a note written
+    // through the API, so do it here as the app would.
+    await api.internal?.send('budget/store-note-templates', [categoryId]);
+    await api.setBudgetAmount(month, categoryId, 10000);
+
+    const reservations = await api.getReservations(month);
+    const category = reservations.find(r => r.categoryId === categoryId);
+
+    expect(category).toMatchObject({
+      categoryName: 'test-reservations',
+      balance: 10000,
+      reserved: 0,
+      allowance: 10000,
+      committed: 10000,
+      spare: 0,
+      claims: [],
+      allowances: [{ label: 'test-allowance', amount: 10000 }],
+    });
+  });
+
+  // apis: getReservations
+  test('Reservations: narrow to one category, and reject a bad month', async () => {
+    const month = '2023-10';
+    global.currentMonth = month;
+
+    const groupId = await api.createCategoryGroup({ name: 'reservations-one' });
+    const categoryId = await api.createCategory({
+      name: 'test-single',
+      group_id: groupId,
+    });
+    await api.setBudgetAmount(month, categoryId, 5000);
+
+    const all = await api.getReservations(month);
+    expect(all.length).toBeGreaterThan(1);
+
+    const one = await api.getReservations(month, { categoryId });
+    expect(one).toHaveLength(1);
+    expect(one[0]).toMatchObject({
+      categoryId,
+      balance: 5000,
+      // Nothing claims it, so there is nothing to be ahead or behind of.
+      spare: 5000,
+      status: null,
+    });
+
+    await expect(api.getReservations('2023-1')).rejects.toThrow(
+      'Invalid month format',
+    );
+    await expect(api.getReservations('1999-01')).rejects.toThrow(
+      'No budget exists for month',
+    );
+  });
+
   //apis: createAccount, getAccounts, updateAccount, closeAccount, deleteAccount, reopenAccount, getAccountBalance
   test('Accounts: successfully complete account operators', async () => {
     const accountId1 = await api.createAccount(

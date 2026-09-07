@@ -22,6 +22,11 @@ export type ReservationClaim = {
   monthlyRate: number;
   /** Whole months until the cost lands. 0 means it is due this month. */
   monthsRemaining: number;
+  /**
+   * Written `[fixed]`: the claim accrues at a flat rate of its own rather than
+   * sharing the category's pot. Reported so a caller can tell the two apart.
+   */
+  fixed?: boolean;
 };
 
 export type SettledClaim = ReservationClaim & {

@@ -99,6 +99,21 @@ paid the schedule rolls forward and the claim starts again from zero.
 If the balance cannot cover everything, claims are settled in due-date order —
 the soonest bill is funded first.
 
+## Through the API
+
+`getReservations` returns the same figures for a month, so a script can report
+on them without reading the budget by hand:
+
+```js
+const rows = await api.getReservations('2026-09');
+// [{ categoryId, categoryName, balance, reserved, allowance,
+//    committed, spare, accrued, shortfall, target, status,
+//    claims: [...], allowances: [...] }]
+```
+
+Amounts are integer cents, and the figures are derived on each call rather than
+stored. See the [API reference](../api/reference.md#getreservations).
+
 ## Status
 
 | Status        | Meaning                                              |

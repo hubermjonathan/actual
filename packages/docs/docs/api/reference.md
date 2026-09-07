@@ -8,6 +8,10 @@ import APIList from './APIList';
 <APIList title="Budgets" sections={[
 "getBudgetMonths",
 "getBudgetMonth",
+"getReservations",
+"Category reservations",
+"Reservation claim",
+"Allowance",
 "setBudgetAmount",
 "setBudgetCarryover",
 "holdBudgetForNextMonth",
@@ -144,6 +148,32 @@ These are types.
 #### `getBudgetMonth`
 
 <Method name="getBudgetMonth" args={[{ name: 'month', type: 'month' }]} returns="Promise<Budget>" />
+
+#### `getReservations`
+
+<Method name="getReservations" args={[{ name: 'month', type: 'month' }, { name: 'options', type: '{ categoryId?: id }' }]} returns="Promise<CategoryReservations[]>" />
+
+Splits each category's balance into what is **reserved** for known future costs, what is this month's **allowance**, and what is **spare**. Pass `categoryId` to narrow the result to one category.
+
+The figures are derived on every call and never stored, so they always match the current balance. They are computed from the [budget templates](../experimental/goal-templates.md) held on each category — see [Reservations](../experimental/reservations.md) for what each part means.
+
+Income categories and hidden categories are omitted. A category with no templates is still returned, with everything in `spare` and a `status` of `null`, so a caller can render every row from one result.
+
+:::note
+Templates are read from the category as it was last stored, which the app refreshes when a template note is edited. A note written through [`updateNote`](#updatenote) is not picked up until the app stores it.
+:::
+
+#### Category reservations
+
+<StructType fields={objects.categoryReservations} />
+
+#### Reservation claim
+
+<StructType fields={objects.reservationClaim} />
+
+#### Allowance
+
+<StructType fields={objects.allowance} />
 
 #### `setBudgetAmount`
 

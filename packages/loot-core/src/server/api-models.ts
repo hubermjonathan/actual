@@ -11,6 +11,7 @@ import type {
   TagEntity,
 } from '#types/models';
 
+import type { CategoryReservationsResult } from './budget/goal-template';
 import type { RemoteFile } from './cloud-storage';
 import * as models from './models';
 
@@ -280,5 +281,109 @@ export const scheduleModel = {
     };
 
     return result;
+  },
+};
+
+/**
+ * One claim on a category's balance — a bill the category is saving towards.
+ *
+ * All amounts are integer cents, like everywhere else in the API. `accrued` is
+ * a fraction of the target and is rounded, so per-claim figures can differ from
+ * the category total by a cent; the category's own fields are authoritative.
+ */
+export type APIReservationClaimEntity = {
+  /** The schedule this claim tracks. */
+  name: string;
+  /** Full amount of the future cost. */
+  target: number;
+  /** Next occurrence, `YYYY-MM-DD`. Claims are settled in this order. */
+  nextDate: string;
+  /** What this claim accrues each month. */
+  monthlyRate: number;
+  /** Whole months until the cost lands. 0 means it is due this month. */
+  monthsRemaining: number;
+  /** What should already be set aside for it by now. */
+  accrued: number;
+  /** What the balance actually covers. Never more than `accrued`. */
+  reserved: number;
+  /** `accrued - reserved`. Above zero means this claim is behind. */
+  shortfall: number;
+  onTrack: boolean;
+  /** Written `[fixed]`: accrues at a flat rate rather than sharing the pot. */
+  fixed: boolean;
+};
+
+/** One allowance in a category, e.g. `#template 1000 [groceries]`. */
+export type APIAllowanceEntity = {
+  label: string;
+  amount: number;
+};
+
+/**
+ * How one category's balance divides up in a given month.
+ *
+ * Derived on every call and never stored, so the figures follow the balance
+ * without anything to invalidate.
+ */
+export type APICategoryReservationsEntity = {
+  categoryId: CategoryEntity['id'];
+  categoryName: string;
+  balance: number;
+  /** Owed to a future cost. Should not be spent yet. */
+  reserved: number;
+  /** Allowance left for this month. Spendable — that is its purpose. */
+  allowance: number;
+  /** `reserved + allowance` — the part of the balance that has a job. */
+  committed: number;
+  /** `balance - committed`. Genuinely nothing claiming it. */
+  spare: number;
+  /** What should be set aside across every claim, held or not. */
+  accrued: number;
+  /** `accrued - reserved` — how far behind the category is in total. */
+  shortfall: number;
+  /** Every claim's full future cost. */
+  target: number;
+  /** `null` when the category has nothing to measure against. */
+  status: 'behind' | 'onPace' | 'ahead' | 'funded' | null;
+  claims: APIReservationClaimEntity[];
+  allowances: APIAllowanceEntity[];
+};
+
+export const reservationsModel = {
+  toExternal(
+    reservations: CategoryReservationsResult,
+  ): APICategoryReservationsEntity {
+    return {
+      categoryId: reservations.categoryId,
+      categoryName: reservations.categoryName,
+      balance: reservations.balance,
+      reserved: reservations.reserved,
+      allowance: reservations.allowance,
+      // Summed here rather than in the core so the API publishes the same
+      // umbrella figure the budget's Committed column shows, without callers
+      // having to know it is a sum.
+      committed: reservations.reserved + reservations.allowance,
+      spare: reservations.spare,
+      accrued: reservations.accrued,
+      shortfall: reservations.shortfall,
+      target: reservations.target,
+      status: reservations.status,
+      claims: reservations.claims.map(claim => ({
+        name: claim.name,
+        target: claim.target,
+        nextDate: claim.nextDate,
+        monthlyRate: claim.monthlyRate,
+        monthsRemaining: claim.monthsRemaining,
+        accrued: claim.accrued,
+        reserved: claim.reserved,
+        shortfall: claim.shortfall,
+        onTrack: claim.onTrack,
+        fixed: !!claim.fixed,
+      })),
+      allowances: reservations.allowances.map(allowance => ({
+        label: allowance.label,
+        amount: allowance.amount,
+      })),
+    };
   },
 };
