@@ -3,8 +3,8 @@ category: Features
 authors: [hubermjonathan]
 ---
 
-Give the mobile budget the same four columns as the desktop — Budgeted, Spent,
-Committed and Balance — by letting the row scroll sideways under a frozen
-category name, opening on Balance. Mobile now takes reservations out of the
-balance as the desktop does, so the two no longer disagree about the same
-category, and the breakdown is in the balance menu where touch can reach it.
+Show how a category's balance divides up where you already look for it: hover
+the balance on desktop, tap it on mobile. Mobile now takes reservations out of
+the balance as the desktop does, so the two no longer disagree about the same
+category, and its row keeps every column — the category name stays put while
+the values scroll, instead of hiding a column behind a toggle.

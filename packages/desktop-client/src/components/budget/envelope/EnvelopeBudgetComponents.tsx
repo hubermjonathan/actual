@@ -12,19 +12,12 @@ import { Popover } from '@actual-app/components/popover';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
-import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
-import type { CategoryReservationsResult } from '@actual-app/core/server/budget/goal-template';
 import * as monthUtils from '@actual-app/core/shared/months';
 import { css } from '@emotion/css';
 
 import { BalanceWithCarryover } from '#components/budget/BalanceWithCarryover';
 import {
-  hasReservationDetail,
-  ReservationsBreakdown,
-} from '#components/budget/ReservationsBreakdown';
-import {
-  useAllowanceTotal,
   useCategoryReservations,
   useReservedTotal,
 } from '#components/budget/ReservationsContext';
@@ -119,11 +112,6 @@ export const BudgetTotalsMonth = memo(function BudgetTotalsMonth() {
       </View>
       <View style={headerLabelStyle}>
         <Text style={{ color: theme.tableHeaderText }}>
-          <Trans>Committed</Trans>
-        </Text>
-      </View>
-      <View style={headerLabelStyle}>
-        <Text style={{ color: theme.tableHeaderText }}>
           <Trans>Balance</Trans>
         </Text>
         <EnvelopeCellValue
@@ -190,7 +178,6 @@ export const ExpenseGroupMonth = memo(function ExpenseGroupMonth({
           type: 'financial',
         }}
       />
-      <GroupCommitted group={group} month={month} />
       <GroupBalanceLessReserved group={group} month={month} />
     </View>
   );
@@ -494,7 +481,6 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
           </EnvelopeCellValue>
         </View>
       </Field>
-      <CommittedCell reservations={reservations} />
       <Field
         ref={balanceMenuTriggerRef}
         name="balance"
@@ -529,7 +515,7 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
             goal={envelopeBudget.catGoal(category.id)}
             budgeted={envelopeBudget.catBudgeted(category.id)}
             longGoal={envelopeBudget.catLongGoal(category.id)}
-            reserved={reservations?.reserved ?? 0}
+            reservations={reservations}
             tooltipDisabled={balanceMenuOpen}
           />
         </Button>
@@ -589,87 +575,6 @@ function GroupBalanceLessReserved({ group, month }: GroupBalanceProps) {
     >
       <Text style={{ ...styles.tnum, fontWeight: 600 }}>
         {format((balance ?? 0) - reserved, 'financial')}
-      </Text>
-    </Field>
-  );
-}
-
-type CommittedCellProps = {
-  reservations: CategoryReservationsResult | null;
-};
-
-/**
- * Money in this balance that already has a job — owed to a future cost, or set
- * aside as this month's allowance.
- *
- * The two are on different horizons, so the split is on the hover; the single
- * figure answers the question the row is scanned for, which is how much of the
- * balance is not spare.
- */
-function CommittedCell({ reservations }: CommittedCellProps) {
-  const format = useFormat();
-  const committed =
-    (reservations?.reserved ?? 0) + (reservations?.allowance ?? 0);
-
-  const cell = (
-    <Text
-      style={{
-        ...styles.tnum,
-        color:
-          reservations?.status === 'behind'
-            ? theme.templateNumberUnderFunded
-            : reservations?.status === 'funded'
-              ? theme.templateNumberFunded
-              : theme.tableTextSubdued,
-      }}
-    >
-      {format(committed, 'financial')}
-    </Text>
-  );
-
-  return (
-    <Field name="committed" width="flex" style={{ textAlign: 'right' }}>
-      {hasReservationDetail(reservations) ? (
-        <Tooltip
-          content={<ReservationsBreakdown reservations={reservations} />}
-          style={{ ...styles.tooltip, borderRadius: '0px 5px 5px 0px' }}
-          placement="bottom"
-          triggerProps={{ delay: 750 }}
-        >
-          {cell}
-        </Tooltip>
-      ) : (
-        cell
-      )}
-    </Field>
-  );
-}
-
-type GroupCommittedProps = {
-  group: CategoryGroupMonthProps['group'];
-  month: string;
-};
-
-/** A group's committed total is the sum of its categories' commitments. */
-function GroupCommitted({ group, month }: GroupCommittedProps) {
-  const format = useFormat();
-  const categoryIds = useMemo(
-    () => (group.categories ?? []).map(c => c.id),
-    [group.categories],
-  );
-  const reserved = useReservedTotal(month, categoryIds) ?? 0;
-  const allowance = useAllowanceTotal(month, categoryIds) ?? 0;
-
-  return (
-    <Field name="committed" width="flex" style={{ textAlign: 'right' }}>
-      <Text
-        style={{
-          ...styles.tnum,
-          fontWeight: 600,
-          color: theme.tableTextSubdued,
-        }}
-      >
-        {format(reserved + allowance, 'financial')}
       </Text>
     </Field>
   );

@@ -13,6 +13,7 @@ import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
+import type { CategoryReservationsResult } from '@actual-app/core/server/budget/goal-template';
 import type { TransObjectLiteral } from '@actual-app/core/types/util';
 import { css } from '@emotion/css';
 
@@ -22,6 +23,10 @@ import { useFormat } from '#hooks/useFormat';
 import { useSheetValue } from '#hooks/useSheetValue';
 import type { Binding } from '#spreadsheet';
 
+import {
+  hasReservationDetail,
+  ReservationsBreakdown,
+} from './ReservationsBreakdown';
 import { makeBalanceAmountStyle } from './util';
 
 type CarryoverIndicatorProps = {
@@ -94,10 +99,11 @@ type BalanceWithCarryoverProps = Omit<
   isDisabled?: boolean;
   shouldInlineGoalStatus?: boolean;
   /**
-   * Amount of the balance already claimed by known future costs. When set, the
-   * cell shows what is left after it — the figure you can actually spend.
+   * How this category's balance divides up. When set, the cell shows what is
+   * left after the reserved part — the figure you can actually spend — and the
+   * hover breaks the rest down.
    */
-  reserved?: number;
+  reservations?: CategoryReservationsResult | null;
   CarryoverIndicator?: ComponentType<CarryoverIndicatorProps>;
   tooltipDisabled?: boolean;
 };
@@ -110,7 +116,7 @@ export function BalanceWithCarryover({
   longGoal,
   isDisabled,
   shouldInlineGoalStatus,
-  reserved = 0,
+  reservations,
   CarryoverIndicator: CarryoverIndicatorComponent = CarryoverIndicator,
   tooltipDisabled,
   children,
@@ -248,18 +254,38 @@ export function BalanceWithCarryover({
     [budgetedValue, format, getDifferenceToGoal, goalValue, longGoalValue, t],
   );
 
+  // Only worth a hover when something actually claims the balance.
+  const showBreakdown = hasReservationDetail(reservations ?? null);
+
   return (
     <CellValue binding={balance} type="financial" {...props}>
       {({ type, name, value: rawBalance }) => {
         // Goal colouring and the carryover indicator still read the true
         // balance; only the displayed figure has reservations taken out.
-        const balanceValue = rawBalance - reserved;
+        const balanceValue = rawBalance - (reservations?.reserved ?? 0);
         return (
           <>
             <Tooltip
               content={
                 <View style={{ padding: 10 }}>
-                  {GoalStatusDisplay(balanceValue, type)}
+                  {goalValue != null && GoalStatusDisplay(balanceValue, type)}
+                  {showBreakdown && (
+                    <>
+                      {goalValue != null && (
+                        <View
+                          style={{
+                            borderTop: `1px solid ${theme.tableBorderSeparator}`,
+                            marginTop: 6,
+                            paddingTop: 6,
+                          }}
+                        />
+                      )}
+                      <ReservationsBreakdown
+                        reservations={reservations ?? null}
+                        style={{ padding: 0 }}
+                      />
+                    </>
+                  )}
                 </View>
               }
               style={{ ...styles.tooltip, borderRadius: '0px 5px 5px 0px' }}
@@ -268,9 +294,9 @@ export function BalanceWithCarryover({
                 delay: 750,
                 isDisabled:
                   !isGoalTemplatesEnabled ||
-                  goalValue == null ||
                   isNarrowWidth ||
-                  tooltipDisabled,
+                  tooltipDisabled ||
+                  (goalValue == null && !showBreakdown),
               }}
             >
               {children ? (

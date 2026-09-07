@@ -7,6 +7,7 @@ import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import type { CategoryReservationsResult } from '@actual-app/core/server/budget/goal-template';
 import type { CategoryEntity } from '@actual-app/core/types/models';
 import { css, cx } from '@emotion/css';
 import { AutoTextSize } from 'auto-text-size';
@@ -27,11 +28,11 @@ type BalanceCellProps = {
   >;
   category: CategoryEntity;
   /**
-   * Amount of the balance already reserved for known future costs. Desktop
-   * passes this too -- without it the phone shows the raw balance and the two
-   * platforms disagree about the same category.
+   * How the balance divides up. Desktop passes this too -- without it the phone
+   * shows the raw balance and the two platforms disagree about the same
+   * category.
    */
-  reserved?: number;
+  reservations?: CategoryReservationsResult | null;
   onPress?: () => void;
   'aria-label'?: string;
 };
@@ -39,7 +40,7 @@ type BalanceCellProps = {
 export function BalanceCell({
   binding,
   category,
-  reserved = 0,
+  reservations,
   onPress,
   'aria-label': ariaLabel,
 }: BalanceCellProps) {
@@ -80,7 +81,7 @@ export function BalanceCell({
       goal={goal}
       budgeted={budgeted}
       longGoal={longGoal}
-      reserved={reserved}
+      reservations={reservations}
       CarryoverIndicator={MobileCarryoverIndicator}
     >
       {({ type, value, className: defaultClassName }) => (

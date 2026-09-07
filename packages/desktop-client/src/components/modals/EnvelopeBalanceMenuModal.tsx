@@ -14,7 +14,7 @@ import {
 import {
   CategoryReservationsProvider,
   ReservationsBreakdownSection,
-  useReservedForCategory,
+  useCategoryReservationsValue,
 } from '#components/budget/CategoryReservationsSection';
 import { BalanceMenu } from '#components/budget/envelope/BalanceMenu';
 import {
@@ -63,7 +63,7 @@ function EnvelopeBalanceMenuModalInner({
   };
 
   const { data: category } = useCategory(categoryId);
-  const reserved = useReservedForCategory();
+  const reservations = useCategoryReservationsValue();
 
   if (!category) {
     return null;
@@ -95,7 +95,7 @@ function EnvelopeBalanceMenuModalInner({
             <BalanceWithCarryover
               isDisabled
               shouldInlineGoalStatus
-              reserved={reserved}
+              reservations={reservations}
               carryover={envelopeBudget.catCarryover(categoryId)}
               balance={envelopeBudget.catBalance(categoryId)}
               goal={envelopeBudget.catGoal(categoryId)}

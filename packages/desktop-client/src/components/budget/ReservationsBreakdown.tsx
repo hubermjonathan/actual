@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
+import type { CSSProperties } from '@actual-app/components/styles';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
@@ -14,6 +15,7 @@ export function hasReservationDetail(r: CategoryReservationsResult | null) {
 
 export type ReservationsBreakdownProps = {
   reservations: CategoryReservationsResult | null;
+  style?: CSSProperties;
 };
 
 function BreakdownRow({
@@ -52,6 +54,7 @@ function BreakdownRow({
  */
 export function ReservationsBreakdown({
   reservations,
+  style,
 }: ReservationsBreakdownProps) {
   const { t } = useTranslation();
   const format = useFormat();
@@ -69,7 +72,7 @@ export function ReservationsBreakdown({
   };
 
   return (
-    <View style={{ padding: 10, minWidth: 220 }}>
+    <View style={{ padding: 10, minWidth: 220, ...style }}>
       {reservations.reserved > 0 && (
         <>
           <BreakdownRow

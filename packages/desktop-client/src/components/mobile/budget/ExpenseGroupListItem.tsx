@@ -18,10 +18,7 @@ import type {
 import { css } from '@emotion/css';
 import { AutoTextSize } from 'auto-text-size';
 
-import {
-  useAllowanceTotal,
-  useReservedTotal,
-} from '#components/budget/ReservationsContext';
+import { useReservedTotal } from '#components/budget/ReservationsContext';
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { CellValue } from '#components/spreadsheet/CellValue';
 import type { FormatType } from '#hooks/useFormat';
@@ -276,7 +273,6 @@ function ExpenseGroupCells({ group, month }: ExpenseGroupCellsProps) {
     [group.categories],
   );
   const reserved = useReservedTotal(month, categoryIds) ?? 0;
-  const allowance = useAllowanceTotal(month, categoryIds) ?? 0;
 
   const amountStyle: CSSProperties = {
     ...styles.tnum,
@@ -343,10 +339,6 @@ function ExpenseGroupCells({ group, month }: ExpenseGroupCellsProps) {
       >
         {({ type, value }) => amount(value, type)}
       </CellValue>
-
-      {amount(reserved + allowance, 'financial' as FormatType, {
-        color: theme.tableTextSubdued,
-      })}
 
       <CellValue<'envelope-budget' | 'tracking-budget', 'group-leftover'>
         binding={balance}

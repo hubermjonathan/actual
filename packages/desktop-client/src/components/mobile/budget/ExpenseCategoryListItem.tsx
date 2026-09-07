@@ -33,7 +33,6 @@ import {
   ROW_HEIGHT,
   TABLE_WIDTH,
 } from './BudgetTable';
-import { CommittedCell } from './CommittedCell';
 import { SpentCell } from './SpentCell';
 
 type ExpenseCategoryNameProps = {
@@ -185,23 +184,10 @@ function ExpenseCategoryCells({
           alignItems: 'flex-end',
         }}
       >
-        <CommittedCell
-          category={category}
-          month={month}
-          onPress={onOpenBalanceMenu}
-        />
-      </View>
-      <View
-        style={{
-          width: columnWidth,
-          justifyContent: 'center',
-          alignItems: 'flex-end',
-        }}
-      >
         <BalanceCell
           binding={balance}
           category={category}
-          reserved={reservations?.reserved ?? 0}
+          reservations={reservations}
           onPress={onOpenBalanceMenu}
           aria-label={t('Open balance menu for {{categoryName}} category', {
             categoryName: category.name,

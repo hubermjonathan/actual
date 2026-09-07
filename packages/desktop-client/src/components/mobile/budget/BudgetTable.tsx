@@ -42,13 +42,13 @@ export const PILL_STYLE: CSSProperties = {
   backgroundColor: theme.pillBackgroundLight,
 };
 
-// The table is wider than the screen on purpose: the four value columns match
-// desktop, and the row scrolls sideways under a frozen category name. The
-// widths are the ones the three-column layout already used, so the cells are
-// no narrower or wider than before -- there is simply one more of them.
+// The value columns scroll sideways under a frozen category name. At these
+// widths the three of them fit on a normal phone and never scroll; the
+// mechanism is what lets a very narrow screen show every column instead of
+// hiding one behind a toggle.
 const SIDEBAR_WIDTH = '35vw';
 const COLUMN_WIDTH = '20vw';
-const COLUMN_COUNT = 4;
+const COLUMN_COUNT = 3;
 
 /** Full width of a row: the frozen name column plus every value column. */
 export const TABLE_WIDTH = `calc(${SIDEBAR_WIDTH} + ${COLUMN_COUNT} * ${COLUMN_WIDTH})`;
@@ -610,11 +610,6 @@ function BudgetTableHeader({
               {({ type, value }) => total(value, type)}
             </CellValue>
           </HeaderColumn>
-
-          {/* No total: a sum of reservations across every category answers no
-              question anyone asks, and desktop leaves it blank for the same
-              reason. */}
-          <HeaderColumn title={t('Committed')} />
 
           <HeaderColumn title={t('Balance')}>
             <CellValue<'envelope-budget' | 'tracking-budget', 'total-leftover'>

@@ -57,9 +57,9 @@ export function CategoryReservationsProvider({
   );
 }
 
-/** Portion of the surrounding category's balance owed to known future costs. */
-export function useReservedForCategory() {
-  return useContext(CategoryReservationsContext)?.reserved ?? 0;
+/** How the surrounding category's balance divides up, or null if it has none. */
+export function useCategoryReservationsValue() {
+  return useContext(CategoryReservationsContext);
 }
 
 /**
