@@ -328,7 +328,6 @@ function ExpenseGroupCells({ group, month }: ExpenseGroupCellsProps) {
         flexDirection: 'row',
         justifyContent: 'flex-end',
         alignItems: 'center',
-        paddingRight: 5,
       }}
     >
       <CellValue<'envelope-budget' | 'tracking-budget', 'group-budget'>

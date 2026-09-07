@@ -147,7 +147,6 @@ function ExpenseCategoryCells({
         alignItems: 'center',
         flexDirection: 'row',
         flex: 1,
-        paddingRight: 5,
       }}
     >
       <View

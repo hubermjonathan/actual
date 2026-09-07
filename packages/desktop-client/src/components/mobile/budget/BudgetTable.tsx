@@ -43,15 +43,18 @@ export const PILL_STYLE: CSSProperties = {
 };
 
 // The table is wider than the screen on purpose: the four value columns match
-// desktop, and the row scrolls sideways under a frozen category name. Widths
-// are viewport-relative with a floor, so a narrow phone scrolls further rather
-// than squeezing the numbers illegibly.
-const SIDEBAR_WIDTH = 'max(35vw, 120px)';
-const COLUMN_WIDTH = 'max(25vw, 95px)';
+// desktop, and the row scrolls sideways under a frozen category name. The
+// widths are the ones the three-column layout already used, so the cells are
+// no narrower or wider than before -- there is simply one more of them.
+const SIDEBAR_WIDTH = '35vw';
+const COLUMN_WIDTH = '20vw';
 const COLUMN_COUNT = 4;
 
 /** Full width of a row: the frozen name column plus every value column. */
 export const TABLE_WIDTH = `calc(${SIDEBAR_WIDTH} + ${COLUMN_COUNT} * ${COLUMN_WIDTH})`;
+
+/** Left and right inset of the card a group's rows sit in. */
+export const CARD_INSET = 5;
 
 export function getColumnWidth({
   isSidebar = false,
@@ -540,6 +543,11 @@ function BudgetTableHeader({
       <View
         style={{
           width: TABLE_WIDTH,
+          // Matches the inset of the card the rows sit in, so every value
+          // column lines up with its heading. Only on the left: a trailing
+          // margin does not count towards the rows' scroll width, so adding
+          // one here would leave the two scrollers 5px apart at the end.
+          marginLeft: CARD_INSET,
           flexDirection: 'row',
           alignItems: 'center',
           padding: '10px 0',
@@ -551,7 +559,7 @@ function BudgetTableHeader({
             flexDirection: 'row',
             justifyContent: 'flex-start',
             alignItems: 'center',
-            paddingLeft: 10,
+            paddingLeft: CARD_INSET,
           }}
         >
           {budgetType === 'tracking' ? (
@@ -573,7 +581,6 @@ function BudgetTableHeader({
             justifyContent: 'flex-end',
             alignItems: 'center',
             flex: 1,
-            paddingRight: 5,
           }}
         >
           <HeaderColumn title={t('Budgeted')}>
