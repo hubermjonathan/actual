@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  accruedToDate,
-  settleReservations,
-  type ReservationClaim,
-} from './reservations';
+import { accruedToDate, settleReservations } from './reservations';
+import type { ReservationClaim } from './reservations';
 
 const claim = (
   name: string,

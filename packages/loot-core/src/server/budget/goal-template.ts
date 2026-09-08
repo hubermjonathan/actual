@@ -13,11 +13,8 @@ import type { Template } from '#types/models/templates';
 import { getSheetValue, isTrackingBudget, setBudget, setGoal } from './actions';
 import { CategoryTemplateContext } from './category-template-context';
 import { tombstoneOrphanCleanupGroups } from './cleanup-groups';
-import {
-  settleReservations,
-  type Allowance,
-  type CategoryReservations,
-} from './reservations';
+import { settleReservations } from './reservations';
+import type { Allowance, CategoryReservations } from './reservations';
 import { getScheduleReservationClaims } from './schedule-template';
 import { checkTemplateNotes, storeNoteTemplates } from './template-notes';
 import type { TemplateNotification } from './template-notification';
