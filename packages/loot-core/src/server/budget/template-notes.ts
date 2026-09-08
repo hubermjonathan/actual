@@ -189,6 +189,9 @@ function templateToLine(
       if (template.limit) {
         result += ` ${limitToString(template.limit)}`;
       }
+      if (template.label) {
+        result += ` [${template.label}]`;
+      }
       return result.trim();
     }
     case 'schedule': {
@@ -234,6 +237,9 @@ function templateToLine(
         if (repeatInfo) {
           result += ` repeat every ${repeatInfo}`;
         }
+      }
+      if (template.label) {
+        result += ` [${template.label}]`;
       }
       return result;
     }

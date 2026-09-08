@@ -13,7 +13,7 @@ import type { Template } from '#types/models/templates';
 import { getSheetValue, isTrackingBudget, setBudget, setGoal } from './actions';
 import { CategoryTemplateContext } from './category-template-context';
 import { tombstoneOrphanCleanupGroups } from './cleanup-groups';
-import { settleReservations } from './reservations';
+import { getByReservationClaims, settleReservations } from './reservations';
 import type { Allowance, CategoryReservations } from './reservations';
 import { getScheduleReservationClaims } from './schedule-template';
 import { checkTemplateNotes, storeNoteTemplates } from './template-notes';
@@ -409,7 +409,7 @@ export async function getReservations({
     const balance = await getSheetValue(sheetName, `leftover-${category.id}`);
     const categoryTemplates = templates[category.id] ?? [];
 
-    const { claims } = categoryTemplates.length
+    const { claims: scheduleClaims } = categoryTemplates.length
       ? await getScheduleReservationClaims(
           categoryTemplates,
           month,
@@ -417,6 +417,18 @@ export async function getReservations({
           currency,
         )
       : { claims: [] };
+
+    // A `by` target with a repeat is a claim with no bill behind it — a
+    // Christmas or an anniversary. Its cycle is closed by the calendar rather
+    // than by a payment, which is why it does not need a schedule.
+    const byClaims = getByReservationClaims(
+      categoryTemplates.filter(t => t.type === 'by'),
+      month,
+      category.name,
+      currency.decimalPlaces,
+    );
+
+    const claims = [...scheduleClaims, ...byClaims];
 
     // A fixed monthly amount is an allowance: spendable this month, but already
     // spoken for. It is not a reservation — reservations are money that must

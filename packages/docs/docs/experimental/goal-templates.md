@@ -230,7 +230,8 @@ The label is annotation only — it does not change how much is budgeted.
 
 This is useful when a category holds several amounts, so each one is named
 rather than sitting behind a comment line.
-Labels also name the allowance in [Reservations](./reservations.md).
+Labels also name the allowance in [Reservations](./reservations.md), and work on
+a [repeating By template](#repeated-savings) for the same reason.
 
 ### By Type
 
@@ -270,6 +271,18 @@ In that case use the following variation:
 | -------------------------------------------- | :-------------: | --------------------------------- |
 | `#template 500 by 2025-03 repeat every year` |    $ 166.66     | Assuming starting in January 2025 |
 | `#template 500 by 2025-03 repeat every year` |     $ 41.66     | All months after March 2025       |
+
+A repeating By template is also a [reservation](./reservations.md): the money is
+owed to a known future cost, so it is held back from the category's spendable
+balance rather than counted as spare. It can carry a label, which names it in
+the breakdown:
+
+| Syntax                                                   |
+| -------------------------------------------------------- |
+| `#template 750 by 2026-12 repeat every year [christmas]` |
+
+A **non-repeating** By template is not a reservation. It has no cycle, so there
+is no answer to "how much should be set aside by now" once its month has passed.
 
 #### By Spend
 

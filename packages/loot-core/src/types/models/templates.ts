@@ -38,6 +38,12 @@ export type ByTemplate = {
   annual?: boolean;
   repeat?: number;
   from?: string;
+  /**
+   * What this target is for, e.g. `#template 750 by 2026-12 repeat every 12
+   * months [christmas]`. Annotation only — it names the claim in the
+   * reservations breakdown and does not change what is budgeted.
+   */
+  label?: string;
 } & BaseTemplateWithPriority;
 
 export type SpendTemplate = {
@@ -47,6 +53,8 @@ export type SpendTemplate = {
   from: string;
   annual?: boolean;
   repeat?: number;
+  /** Shares the `by` syntax, so it can carry a label. Unused. */
+  label?: string;
 } & BaseTemplateWithPriority;
 
 export type SimpleTemplate = {
