@@ -39,9 +39,21 @@ Christmas happens whether or not the money was spent — so its target month rol
 forward on its own. A non-repeating By template has no cycle and is not a
 reservation.
 
-The budget shows a **Committed** column, and the **Balance** column has the
-reserved part taken out. Hovering the figure breaks it into Reserved, Allowance
-and Spare.
+## Where to see it
+
+The **Balance** column has the reserved part taken out already, so the figure
+you read before spending is the money you can spend. Hover it to see how it
+divides up:
+
+![The balance breakdown on hover](/img/reservations/balance-hover.png)
+
+On mobile there is no hover, so the same breakdown is in the balance menu — tap
+the balance:
+
+![The balance breakdown on mobile](/img/reservations/mobile-balance-menu.png)
+
+The panel only appears when something actually claims the balance. A category
+with no templates shows nothing extra.
 
 ## Why an allowance is not a reservation
 
