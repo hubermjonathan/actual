@@ -26,9 +26,34 @@ A `#template schedule` line creates a **reservation**: money building up for a
 bill that has not arrived. A `#template 1000 [groceries]` line is an
 **allowance**: money meant to be spent this month.
 
-The budget shows a **Committed** column, and the **Balance** column has the
-reserved part taken out. Hovering the figure breaks it into Reserved, Allowance
-and Spare.
+A repeating **By** template is a reservation too — for a cost with no bill to
+match, like Christmas:
+
+```
+#template 750 by 2026-12 repeat every year [christmas]
+```
+
+The difference between the two is what ends the cycle. A bill's reservation
+resets when the payment posts. An occasion's resets when the **date passes** —
+Christmas happens whether or not the money was spent — so its target month rolls
+forward on its own. A non-repeating By template has no cycle and is not a
+reservation.
+
+## Where to see it
+
+The **Balance** column has the reserved part taken out already, so the figure
+you read before spending is the money you can spend. Hover it to see how it
+divides up:
+
+![The balance breakdown on hover](/img/reservations/balance-hover.png)
+
+On mobile there is no hover, so the same breakdown is in the balance menu — tap
+the balance:
+
+![The balance breakdown on mobile](/img/reservations/mobile-balance-menu.png)
+
+The panel only appears when something actually claims the balance. A category
+with no templates shows nothing extra.
 
 ## Why an allowance is not a reservation
 

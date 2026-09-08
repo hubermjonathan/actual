@@ -5,15 +5,15 @@ expr
     { return { type: 'percentage', percent: +percentOf.percent, previous: percentOf.prev, category, priority: template.priority, directive: template.directive }}
   / template: template _ amount: amount _ repeatEvery _ period: periodCount _ starting _ starting: date limit: limit?
     { return { type: 'periodic', amount, period, starting, limit, priority: template.priority, directive: template.directive }}
-  / template: template _ amount: amount _ by _ month: month from: spendFrom? repeat: (_ repeatEvery _ repeat)?
-    { return {
+  / template: template _ amount: amount _ by _ month: month from: spendFrom? repeat: (_ repeatEvery _ repeat)? label: label?
+    { const t = {
       type: from ? 'spend' : 'by',
       amount,
       month,
       ...(repeat ? repeat[3] : {}),
       from,
       priority: template.priority, directive: template.directive
-    }}
+    }; if (label != null) t.label = label; return t }
   / template: template _ monthly: amount limit: limit? label: label?
     { const t = { type: 'simple', monthly, limit, priority: template.priority, directive: template.directive }; if (label != null) t.label = label; return t }
   / template: template _ limit: limit label: label?

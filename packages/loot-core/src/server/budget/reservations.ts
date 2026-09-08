@@ -11,6 +11,10 @@
 // claim's next due date also makes draw-down automatic: when a bill posts and
 // the schedule rolls forward, that claim's accrual restarts on its own.
 
+import * as monthUtils from '#shared/months';
+import { amountToInteger } from '#shared/util';
+import type { ByTemplate } from '#types/models/templates';
+
 export type ReservationClaim = {
   /** Display name, from the schedule the claim tracks. */
   name: string;
@@ -168,4 +172,61 @@ export function settleReservations(
     claims: settled,
     allowances,
   };
+}
+
+/**
+ * Claims for savings targets that no bill will ever settle — Christmas, an
+ * anniversary, a birthday.
+ *
+ * These come from the `by` template rather than a schedule, because the two
+ * kinds of claim are closed by different things. A bill's cycle ends when the
+ * payment posts, which is why schedule-backed claims read `schedules_next_date`.
+ * An occasion's cycle ends when the **date passes** — Christmas happens whether
+ * or not the money was spent — so the target month simply rolls forward by the
+ * period, exactly as the budget engine's own `runBy` already does.
+ *
+ * Only repeating targets become claims. A one-off `#template 750 by 2026-12`
+ * has no cycle to reset and no anchor for "what should be set aside by now",
+ * so it is left alone.
+ */
+export function getByReservationClaims(
+  templates: ByTemplate[],
+  currentMonth: string,
+  fallbackName: string,
+  decimalPlaces: number,
+): ReservationClaim[] {
+  const claims: ReservationClaim[] = [];
+
+  for (const template of templates) {
+    const period = template.annual
+      ? (template.repeat || 1) * 12
+      : (template.repeat ?? null);
+    if (!period) continue;
+
+    // Roll the target forward until it is in the future, the same way `runBy`
+    // resolves a target month that has already passed.
+    let targetMonth = `${template.month}`;
+    let monthsRemaining = monthUtils.differenceInCalendarMonths(
+      targetMonth,
+      currentMonth,
+    );
+    while (monthsRemaining < 0) {
+      targetMonth = monthUtils.addMonths(targetMonth, period);
+      monthsRemaining = monthUtils.differenceInCalendarMonths(
+        targetMonth,
+        currentMonth,
+      );
+    }
+
+    const target = amountToInteger(template.amount, decimalPlaces);
+    claims.push({
+      name: template.label ?? fallbackName,
+      target,
+      nextDate: `${targetMonth}-01`,
+      monthlyRate: target / period,
+      monthsRemaining: Math.max(0, monthsRemaining),
+    });
+  }
+
+  return claims;
 }

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { accruedToDate, settleReservations } from './reservations';
+import type { ByTemplate } from '#types/models/templates';
+
+import {
+  accruedToDate,
+  getByReservationClaims,
+  settleReservations,
+} from './reservations';
 import type { ReservationClaim } from './reservations';
 
 const claim = (
@@ -213,5 +219,99 @@ describe('allowances and status', () => {
     // A plain savings category with no templates is neither ahead nor behind.
     expect(settleReservations(1625230, []).status).toBeNull();
     expect(settleReservations(0, []).status).toBeNull();
+  });
+});
+
+describe('getByReservationClaims', () => {
+  const by = (overrides: Partial<ByTemplate> = {}): ByTemplate =>
+    ({
+      type: 'by',
+      amount: 750,
+      month: '2026-11',
+      annual: true,
+      repeat: 1,
+      directive: 'template',
+      priority: 0,
+      ...overrides,
+    }) as ByTemplate;
+
+  it('turns a repeating target into a claim', () => {
+    const [c] = getByReservationClaims([by()], '2026-09', 'Savings', 2);
+
+    expect(c.name).toBe('Savings');
+    expect(c.target).toBe(75000);
+    expect(c.nextDate).toBe('2026-11-01');
+    expect(c.monthsRemaining).toBe(2);
+    expect(c.monthlyRate).toBe(75000 / 12);
+    // ten of twelve months elapsed
+    expect(accruedToDate(c)).toBe(75000 - (75000 / 12) * 2);
+  });
+
+  it('names the claim from its label', () => {
+    const [c] = getByReservationClaims(
+      [by({ label: 'christmas' })],
+      '2026-09',
+      'Savings',
+      2,
+    );
+
+    expect(c.name).toBe('christmas');
+  });
+
+  it('rolls the target forward once the date has passed', () => {
+    // The occasion happened; nothing was "paid", and the cycle still restarts.
+    const [c] = getByReservationClaims([by()], '2026-12', 'Savings', 2);
+
+    expect(c.nextDate).toBe('2027-11-01');
+    expect(c.monthsRemaining).toBe(11);
+    expect(accruedToDate(c)).toBe(75000 - (75000 / 12) * 11);
+  });
+
+  it('rolls forward across several missed cycles', () => {
+    const [c] = getByReservationClaims(
+      [by({ month: '2020-11' })],
+      '2026-09',
+      'Savings',
+      2,
+    );
+
+    expect(c.nextDate).toBe('2026-11-01');
+  });
+
+  it('reads a non-annual repeat as months', () => {
+    const [c] = getByReservationClaims(
+      [by({ annual: false, repeat: 6, month: '2026-10' })],
+      '2026-09',
+      'Savings',
+      2,
+    );
+
+    expect(c.monthlyRate).toBe(75000 / 6);
+  });
+
+  it('ignores a one-off target, which has no cycle to reset', () => {
+    expect(
+      getByReservationClaims(
+        [by({ annual: false, repeat: undefined })],
+        '2026-09',
+        'Savings',
+        2,
+      ),
+    ).toEqual([]);
+  });
+
+  it('settles beside a schedule claim, in due-date order', () => {
+    const claims = [
+      claim('BMW Insurance', 105300, 12, 3, '2026-12-01'),
+      ...getByReservationClaims(
+        [by({ label: 'christmas' })],
+        '2026-09',
+        'S',
+        2,
+      ),
+    ];
+    const r = settleReservations(200000, claims);
+
+    expect(r.claims.map(c => c.name)).toEqual(['christmas', 'BMW Insurance']);
   });
 });
