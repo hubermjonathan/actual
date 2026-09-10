@@ -418,9 +418,9 @@ export async function getReservations({
         )
       : { claims: [] };
 
-    // A `by` target with a repeat is a claim with no bill behind it — a
-    // Christmas or an anniversary. Its cycle is closed by the calendar rather
-    // than by a payment, which is why it does not need a schedule.
+    // A repeating `by` target is a claim that has no bill, such as Christmas
+    // or an anniversary. The calendar ends its cycle, not a payment. That is
+    // why it does not need a schedule.
     const byClaims = getByReservationClaims(
       categoryTemplates.filter(t => t.type === 'by'),
       month,
@@ -430,9 +430,9 @@ export async function getReservations({
 
     const claims = [...scheduleClaims, ...byClaims];
 
-    // A fixed monthly amount is an allowance: spendable this month, but already
-    // spoken for. It is not a reservation — reservations are money that must
-    // NOT be spent yet because it belongs to a future cost.
+    // A fixed monthly amount is an allowance. You can spend it this month, but
+    // it is already promised. It is not a reservation. A reservation is money
+    // you must not spend yet, because it belongs to a future cost.
     const allowances: Allowance[] = categoryTemplates.flatMap(t =>
       t.type === 'simple' && t.monthly
         ? [
@@ -463,9 +463,9 @@ export async function dryRunCategoryTemplate({
   categoryId: CategoryEntity['id'];
   templates: Template[];
 }): Promise<DryRunCategoryResult> {
-  // The projection answers "how much do these templates demand" — it
-  // skips the priority clamp so future months (where To Budget is empty)
-  // still show the templates' intended amount instead of 0.
+  // The projection shows how much these templates ask for. It does not apply
+  // the priority limit. A future month has an empty To Budget, so the templates
+  // still show their intended amount and not 0.
   const { data: categoryData }: { data: CategoryEntity[] } = await aqlQuery(
     q('categories').filter({ id: categoryId }).select('*'),
   );

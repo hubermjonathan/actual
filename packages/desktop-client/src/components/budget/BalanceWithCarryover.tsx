@@ -99,9 +99,9 @@ type BalanceWithCarryoverProps = Omit<
   isDisabled?: boolean;
   shouldInlineGoalStatus?: boolean;
   /**
-   * How this category's balance divides up. When set, the cell shows what is
-   * left after the reserved part — the figure you can actually spend — and the
-   * hover breaks the rest down.
+   * How this category balance divides up. When you set this, the cell shows
+   * the amount left after the reserved part. That is the amount you can spend.
+   * The pointer-over panel shows the rest of the parts.
    */
   reservations?: CategoryReservationsResult | null;
   CarryoverIndicator?: ComponentType<CarryoverIndicatorProps>;

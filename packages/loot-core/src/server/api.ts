@@ -1056,7 +1056,9 @@ handlers['api/schedule-update'] = withMutation(async function ({
               break;
             default:
               throw APIError(
-                `Invalid amount operator: ${String(value)}. Expected: is, isapprox, or isbetween`,
+                `Invalid amount operator: ${String(
+                  value,
+                )}. Expected: is, isapprox, or isbetween`,
               );
           }
           sched._conditions[amountIndex].op = convertedOp;

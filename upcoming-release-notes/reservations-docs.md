@@ -3,7 +3,8 @@ category: Maintenance
 authors: [hubermjonathan]
 ---
 
-Document the reservations behaviour that was missing: why an allowance is not a
-reservation, why the schedule template's monthly amount varies unless it is
-`[fixed]`, that transfers out are capped at the reduced balance, and that
-merging a category leaves its template lines behind.
+Add the missing documentation for reservations. It explains why an allowance is
+not a reservation, and why the monthly amount of a schedule template changes
+unless you mark it `[fixed]`. It also explains that a transfer out is limited to
+the reduced balance, and that a merged category leaves its template lines
+behind.

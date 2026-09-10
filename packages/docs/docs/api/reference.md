@@ -154,14 +154,14 @@ These are types.
 
 <Method name="getReservations" args={[{ name: 'month', type: 'month' }, { name: 'options', type: '{ categoryId?: id }' }]} returns="Promise<CategoryReservations[]>" />
 
-Splits each category's balance into what is **reserved** for known future costs, what is this month's **allowance**, and what is **spare**. Pass `categoryId` to narrow the result to one category.
+Divides each category balance into three parts: the money **reserved** for known future costs, this month's **allowance**, and the money that is **spare**. Pass `categoryId` to get one category only.
 
-The figures are derived on every call and never stored, so they always match the current balance. They are computed from the [budget templates](../experimental/goal-templates.md) held on each category — see [Reservations](../experimental/reservations.md) for what each part means.
+Actual calculates these values on each call and does not store them, so they always agree with the current balance. It calculates them from the [budget templates](../experimental/goal-templates.md) on each category. See [Reservations](../experimental/reservations.md) for the meaning of each part.
 
-Income categories and hidden categories are omitted. A category with no templates is still returned, with everything in `spare` and a `status` of `null`, so a caller can render every row from one result.
+The result does not include income categories or hidden categories. It does include a category that has no templates. That category holds all of its money in `spare` and has a `status` of `null`, so you can show every row from one result.
 
 :::note
-Templates are read from the category as it was last stored, which the app refreshes when a template note is edited. A note written through [`updateNote`](#updatenote) is not picked up until the app stores it.
+Actual reads the templates from the last copy it stored on the category. The app updates that copy when you edit a template note. If you write a note with [`updateNote`](#updatenote), Actual does not use it until the app stores it.
 :::
 
 #### Category reservations

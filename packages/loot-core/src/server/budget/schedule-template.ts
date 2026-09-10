@@ -333,9 +333,9 @@ function getSinkingTotal(t: ScheduleTemplateTarget[]) {
 /**
  * Build the reservation claims a category's schedule templates imply.
  *
- * Reuses `createScheduleList` and `getMonthlyBaseContribution` so a claim's
- * accrual rate is by construction the same rate the budget contributes each
- * month — the two cannot drift apart.
+ * This uses `createScheduleList` and `getMonthlyBaseContribution`. The rate a
+ * claim collects at is therefore the same rate the budget adds each month. The
+ * two cannot move apart.
  *
  * Claims funded in full in their due month (`#template schedule full X`, and
  * anything the engine treats that way) accrue all-or-nothing rather than pro
@@ -355,12 +355,12 @@ export async function getScheduleReservationClaims(
     currency,
   );
 
-  // `createScheduleList` resolves the occurrence relevant to the budget month,
-  // which is right for budgeting: September still has to fund September's bill.
-  // Reservations ask a different question — what does this balance still owe —
-  // so they read the schedule's stored `next_date`, which moves forward once a
-  // bill is paid. Without this, a claim settled earlier in the month keeps
-  // reserving against a balance it has already been drawn from.
+  // `createScheduleList` finds the occurrence for the budget month. That is
+  // correct for budgeting, because September must still pay September's bill.
+  // A reservation answers a different question: what does this balance still
+  // owe? It therefore reads the schedule's stored `next_date`, which moves
+  // forward after you pay a bill. Without this, a claim you paid earlier in the
+  // month keeps a reservation against a balance it has already taken.
   const claims: ReservationClaim[] = [];
   for (const c of t) {
     if (c.completed !== 0) continue;
@@ -430,10 +430,10 @@ export async function runSchedule(
     .filter(c => !isPayMonthOf(c))
     .sort((a, b) => a.next_date_string.localeCompare(b.next_date_string));
 
-  // `[fixed]` claims contribute the same amount every month rather than letting
-  // the category's balance decide. They are held out of the pooled allocation
-  // entirely — both their contribution and the savings they have already
-  // accrued, which the remaining claims must not be credited with.
+  // A `[fixed]` claim adds the same amount each month. The category balance
+  // does not change it. We keep these claims out of the shared pool. We keep
+  // out both their monthly amount and the money they have already saved. The
+  // other claims must not count that money.
   const t_fixed = t_allSinking.filter(c => c.template.fixed);
   const t_sinking = t_allSinking.filter(c => !c.template.fixed);
   const fixedContribution = getSinkingBaseContributionTotal(t_fixed);

@@ -46,11 +46,11 @@ function BreakdownRow({
 }
 
 /**
- * How a category's balance divides up.
+ * How a category balance divides up.
  *
- * `Reserved` is owed to a future cost and should not be spent yet. `Allowance`
- * is for this month — spendable, that is its purpose, but already committed.
- * What is left over is spare.
+ * `Reserved` is owed to a future cost. Do not spend it yet. `Allowance` is for
+ * this month. You can spend it, because that is its purpose, but it is already
+ * promised. The amount that is left is spare.
  */
 export function ReservationsBreakdown({
   reservations,

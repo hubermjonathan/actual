@@ -159,9 +159,9 @@ actual budgets reset-hold --month 2026-03
 
 ### Reservations
 
-Splits each category's balance into what is reserved for future costs, what is
-this month's allowance, and what is spare. See
-[Reservations](../experimental/reservations.md) for what the parts mean.
+Divides each category balance into three parts: the money reserved for future
+costs, this month's allowance, and the money that is spare. See
+[Reservations](../experimental/reservations.md) for the meaning of each part.
 
 ```bash
 # Reserved, allowance and spare per category
@@ -170,13 +170,13 @@ actual reservations list 2026-09
 # Just one category
 actual reservations list 2026-09 --category <id>
 
-# One row per claim: what it owes, and what is set aside so far
+# One row for each claim: the amount owed, and the amount saved so far
 actual reservations claims 2026-09
 ```
 
-`list` in `table` or `csv` format shows the per-category totals only, because
-those formats hold one value per cell. Use `claims` for the detail behind them,
-or `--format json`, which always carries the whole payload.
+In `table` or `csv` format, `list` shows only the totals for each category.
+Those formats hold one value in each cell. To see the detail, use `claims`, or
+use `--format json`, which always returns all of the data.
 
 ### Categories
 

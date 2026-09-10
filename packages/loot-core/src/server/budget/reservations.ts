@@ -1,15 +1,16 @@
-// A reservation is a named claim inside a category for a known future cost.
+// A reservation is a named claim in a category for a known future cost.
 //
-// The problem it solves: a category's balance reads as spendable when part of
-// it is really owed to an irregular cost that has not arrived yet. Splitting
-// the balance into `reserved` and `spare` makes the number you read before
-// spending the money you can actually spend.
+// It solves this problem: a category balance looks like money you can spend,
+// but part of it is owed to an irregular cost that has not arrived. When we
+// divide the balance into `reserved` and `spare`, the number you read before
+// you spend is the money you can spend.
 //
-// Everything here is DERIVED on read, never stored. A stored figure would drift
-// the moment a transaction posts, an amount changes, or a budget cell is edited
-// by hand, and there is no reliable place to invalidate it. Deriving from each
-// claim's next due date also makes draw-down automatic: when a bill posts and
-// the schedule rolls forward, that claim's accrual restarts on its own.
+// We calculate all of this on read. We never store it. A stored value would go
+// out of date as soon as a transaction posts, an amount changes, or someone
+// edits a budget cell, and there is no good place to clear it. We calculate
+// from the next due date of each claim, which also makes the draw-down
+// automatic. When a bill posts, the schedule moves forward and that claim
+// starts to collect again from zero.
 
 import * as monthUtils from '#shared/months';
 import { amountToInteger } from '#shared/util';
@@ -27,8 +28,9 @@ export type ReservationClaim = {
   /** Whole months until the cost lands. 0 means it is due this month. */
   monthsRemaining: number;
   /**
-   * Written `[fixed]`: the claim accrues at a flat rate of its own rather than
-   * sharing the category's pot. Reported so a caller can tell the two apart.
+   * Written `[fixed]`. The claim collects at its own flat rate and does not
+   * share the category pot. We report it so that a caller can tell the two
+   * types apart.
    */
   fixed?: boolean;
 };
@@ -43,7 +45,7 @@ export type SettledClaim = ReservationClaim & {
   onTrack: boolean;
 };
 
-/** What an allowance sets aside for this month, e.g. `#template 1000 [groceries]`. */
+/** The amount an allowance keeps for this month, for example `#template 1000 [groceries]`. */
 export type Allowance = {
   label: string;
   amount: number;
@@ -56,15 +58,16 @@ export type CategoryReservations = {
   /** Portion of the balance owed to future costs. Not spendable now. */
   reserved: number;
   /**
-   * Allowance money still sitting in the balance. Spendable — that is what an
-   * allowance is for — but already committed, so it is not slack.
+   * Allowance money that is still in the balance. You can spend it, because
+   * that is what an allowance is for. It is already promised, so it is not
+   * free money.
    */
   allowance: number;
-  /** `balance - reserved - allowance` — beyond both future costs and allowances. */
+  /** `balance - reserved - allowance`. More than the future costs and the allowances need. */
   spare: number;
   /** What should be held across all claims, ignoring whether it is there. */
   accrued: number;
-  /** `accrued - reserved` — how far behind the category is in total. */
+  /** `accrued - reserved`. The total amount the category is behind by. */
   shortfall: number;
   /** Every claim's full future cost, the point at which nothing more is needed. */
   target: number;
@@ -75,17 +78,16 @@ export type CategoryReservations = {
 };
 
 /**
- * How much of `target` should already be set aside.
+ * The part of `target` that you should already hold.
  *
- * Derived as `target - monthlyRate * monthsRemaining`: whatever is still to be
- * saved is the rate times the months left, so everything else is owed already.
- * Expressing it this way reuses the engine's own contribution rate rather than
- * reimplementing period arithmetic, so the two cannot disagree.
+ * We calculate `target - monthlyRate * monthsRemaining`. The amount still to
+ * save is the rate times the months that are left, so you owe the rest now.
+ * This uses the engine's own contribution rate. We do not repeat the period
+ * arithmetic here, so the two cannot disagree.
  *
- * Deliberately NOT rounded per claim. The budget engine sums the exact rates and
- * rounds the total once, so rounding here first — round-then-sum against its
- * sum-then-round — leaves the category looking a cent ahead or behind for no
- * reason. Aggregates are rounded on the way out instead.
+ * Do not round each claim here. The budget engine adds the exact rates and
+ * rounds the total once. If we round first and then add, the category looks one
+ * cent ahead or behind for no reason. We round the totals at the end instead.
  */
 export function accruedToDate(claim: ReservationClaim): number {
   const remaining = claim.monthlyRate * claim.monthsRemaining;
@@ -110,9 +112,9 @@ export function settleReservations(
   });
 
   let unallocated = Math.max(0, balance);
-  // Settled exactly first: the engine sums exact rates and rounds the total
-  // once, so rounding per claim here and summing those would leave the category
-  // a cent ahead or behind for no reason.
+  // Settle with exact values first. The engine adds exact rates and rounds the
+  // total once. If we round each claim and then add, the category looks one
+  // cent ahead or behind for no reason.
   const exact = ordered.map(claim => {
     const accrued = accruedToDate(claim);
     const reserved = Math.min(unallocated, accrued);
@@ -125,9 +127,9 @@ export function settleReservations(
   const target = exact.reduce((sum, c) => sum + c.claim.target, 0);
   const shortfall = Math.max(0, accrued - reserved);
 
-  // Per-claim figures are for display and round individually, so their sum can
-  // differ from the category total by a cent. The totals above are the
-  // authoritative ones.
+  // These per-claim values are for display, and each one rounds on its own.
+  // Their sum can differ from the category total by one cent. Use the totals
+  // above as the correct values.
   const settled: SettledClaim[] = exact.map(c => ({
     ...c.claim,
     accrued: Math.round(c.accrued),
@@ -136,9 +138,9 @@ export function settleReservations(
     onTrack: c.accrued - c.reserved < 1,
   }));
 
-  // Allowances take whatever the future costs have not. As the month's
-  // allowance is spent the balance falls, and so does this — so it tracks what
-  // is left of the allowance rather than what it started at.
+  // Allowances get the money that the future costs do not need. As you spend
+  // the month's allowance, the balance falls and this value falls with it. It
+  // shows what is left of the allowance, not the amount it started at.
   const allowanceTotal = allowances.reduce((sum, a) => sum + a.amount, 0);
   const allowance = Math.min(
     Math.max(0, balance - reserved),
@@ -175,19 +177,19 @@ export function settleReservations(
 }
 
 /**
- * Claims for savings targets that no bill will ever settle — Christmas, an
- * anniversary, a birthday.
+ * Claims for savings targets that have no bill, such as Christmas, an
+ * anniversary or a birthday.
  *
- * These come from the `by` template rather than a schedule, because the two
- * kinds of claim are closed by different things. A bill's cycle ends when the
- * payment posts, which is why schedule-backed claims read `schedules_next_date`.
- * An occasion's cycle ends when the **date passes** — Christmas happens whether
- * or not the money was spent — so the target month simply rolls forward by the
- * period, exactly as the budget engine's own `runBy` already does.
+ * These come from the `by` template, not from a schedule, because the two types
+ * of claim end their cycle in different ways. A bill cycle ends when the payment
+ * posts, so schedule claims read `schedules_next_date`. An occasion cycle ends
+ * when the **date passes**, because Christmas comes whether or not you spent
+ * the money. The target month therefore moves forward by one period, in the
+ * same way as the budget engine's `runBy`.
  *
- * Only repeating targets become claims. A one-off `#template 750 by 2026-12`
- * has no cycle to reset and no anchor for "what should be set aside by now",
- * so it is left alone.
+ * Only a repeating target becomes a claim. A single `#template 750 by 2026-12`
+ * has no cycle to reset. It also gives no way to say how much you should hold
+ * by now, so we ignore it.
  */
 export function getByReservationClaims(
   templates: ByTemplate[],

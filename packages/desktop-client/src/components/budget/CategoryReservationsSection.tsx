@@ -63,10 +63,10 @@ export function useCategoryReservationsValue() {
 }
 
 /**
- * How the balance divides up: reserved, allowance, and what is spare.
+ * How the balance divides up: reserved, allowance and spare.
  *
- * Renders nothing when there is nothing claiming the balance — an empty panel
- * would only add a scroll.
+ * This shows nothing when no claim uses the balance. An empty panel would only
+ * make the page longer.
  */
 export function ReservationsBreakdownSection() {
   const reservations = useContext(CategoryReservationsContext);

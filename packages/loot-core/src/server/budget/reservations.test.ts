@@ -143,7 +143,7 @@ describe('allowances and status', () => {
 
   it('keeps an allowance out of spare', () => {
     // Nothing is owed to a future cost, but the balance is this month's
-    // grocery money — it is spendable, and it is not slack.
+    // grocery money. You can spend it, and it is not free money.
     const r = settleReservations(
       118500,
       [],

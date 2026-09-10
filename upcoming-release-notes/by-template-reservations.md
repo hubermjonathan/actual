@@ -3,8 +3,8 @@ category: Features
 authors: [hubermjonathan]
 ---
 
-Treat a repeating By template as a reservation, so a cost with no bill behind it
-— Christmas, an anniversary — no longer needs a schedule that never posts. Its
-cycle rolls forward when the date passes rather than when a payment lands. By
-templates can carry a `[label]` like simple ones, and labels now survive a
-template being rewritten, which previously dropped them.
+Use a repeating By template as a reservation. A cost with no bill, such as
+Christmas or an anniversary, no longer needs a schedule that never posts. The
+cycle moves forward when the date passes, not when a payment arrives. By
+templates can carry a `[label]`, the same as simple templates. Labels now stay
+in place when a template is rewritten. Before this change they were lost.

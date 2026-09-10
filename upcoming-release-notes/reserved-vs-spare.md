@@ -3,6 +3,6 @@ category: Features
 authors: [hubermjonathan]
 ---
 
-Split each budget category's balance into what is reserved for known future
-costs and what is genuinely spare, so a category holding a sinking fund no
-longer reads as if the whole balance could be spent today.
+Divide each budget category balance into two parts: the money reserved for known
+future costs, and the money that is spare. A category that holds a sinking fund
+no longer reads as if you could spend the whole balance today.

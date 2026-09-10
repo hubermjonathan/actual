@@ -3,6 +3,7 @@ category: Features
 authors: [hubermjonathan]
 ---
 
-Add `getReservations(month)` to the API, returning each category's balance split
-into reserved, allowance and spare, with the individual claims and allowances
-behind it. Previously this was only reachable through an internal handler.
+Add `getReservations(month)` to the API. It returns each category balance
+divided into reserved, allowance and spare, with the claims and allowances that
+make up those values. Before this change you could only get them through an
+internal handler.

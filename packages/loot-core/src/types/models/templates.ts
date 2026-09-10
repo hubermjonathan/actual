@@ -39,9 +39,9 @@ export type ByTemplate = {
   repeat?: number;
   from?: string;
   /**
-   * What this target is for, e.g. `#template 750 by 2026-12 repeat every 12
-   * months [christmas]`. Annotation only — it names the claim in the
-   * reservations breakdown and does not change what is budgeted.
+   * What this target is for, for example `#template 750 by 2026-12 repeat
+   * every 12 months [christmas]`. This is a note only. It names the claim in
+   * the reservations breakdown. It does not change the budgeted amount.
    */
   label?: string;
 } & BaseTemplateWithPriority;
@@ -61,8 +61,9 @@ export type SimpleTemplate = {
   type: 'simple';
   monthly?: number;
   /**
-   * What this amount is for, e.g. `#template 1000 [groceries]`. Annotation
-   * only — it names an allowance, it does not change how much is budgeted.
+   * What this amount is for, for example `#template 1000 [groceries]`. This is
+   * a note only. It names an allowance. It does not change the budgeted
+   * amount.
    */
   label?: string;
   limit?: {

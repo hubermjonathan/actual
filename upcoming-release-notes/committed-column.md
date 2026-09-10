@@ -3,6 +3,6 @@ category: Features
 authors: [hubermjonathan]
 ---
 
-Show a Committed column in the envelope budget — what a category's balance
-already owes to future costs plus this month's allowances — with a breakdown
-into Reserved, Allowance and Spare on hover.
+Add a Committed column to the envelope budget. It shows what a category balance
+owes to future costs, plus this month's allowances. Hold the pointer over the
+value to see it divided into Reserved, Allowance and Spare.

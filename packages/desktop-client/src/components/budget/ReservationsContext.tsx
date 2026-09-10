@@ -27,8 +27,9 @@ const ReservationsContext = createContext<Map<string, ReservationsByCategory>>(
 type ReservationsProviderProps = {
   children: ReactNode;
   /**
-   * Months to load. Defaults to the visible months from `MonthsContext`, which
-   * mobile does not have — it shows one month and passes it explicitly.
+   * The months to load. The default is the visible months from
+   * `MonthsContext`. Mobile has no `MonthsContext`. It shows one month and
+   * gives that month directly.
    */
   months?: string[];
 };
@@ -40,9 +41,9 @@ type ReservationsProviderProps = {
  * across three months would otherwise issue a hundred and fifty requests to
  * render one screen.
  *
- * The figures are derived server-side on each call, so they follow balance
- * changes without any cache to invalidate — at the cost of refetching when the
- * visible months change.
+ * The server calculates these values on each call, so they follow a change in
+ * the balance and there is no cache to clear. The cost is one more request when
+ * the visible months change.
  */
 export function ReservationsProvider({
   children,

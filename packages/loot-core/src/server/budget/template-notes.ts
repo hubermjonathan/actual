@@ -213,7 +213,9 @@ function templateToLine(
     case 'percentage': {
       // #template[-prio] <percent>% of [previous ]<category>
       const prev = template.previous ? 'previous ' : '';
-      return `${prefix} ${trimTrailingZeros(template.percent)}% of ${prev}${template.category}`.trim();
+      return `${prefix} ${trimTrailingZeros(template.percent)}% of ${prev}${
+        template.category
+      }`.trim();
     }
     case 'periodic': {
       // #template[-prio] <amount> repeat every <n> <period>(s) starting <date> [limit]

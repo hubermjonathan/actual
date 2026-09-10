@@ -244,7 +244,8 @@ export const objects = {
       type: types.amount,
       description: (
         <span>
-          Allowance left for this month. Spendable — that is its purpose.
+          The allowance left for this month. You can spend it. That is its
+          purpose.
         </span>
       ),
     },
@@ -253,8 +254,8 @@ export const objects = {
       type: types.amount,
       description: (
         <span>
-          <code>reserved + allowance</code> — the part of the balance that
-          already has a job.
+          <code>reserved + allowance</code>. This is the part of the balance
+          that already has a job.
         </span>
       ),
     },
@@ -280,7 +281,8 @@ export const objects = {
       type: types.amount,
       description: (
         <span>
-          <code>accrued - reserved</code> — how far behind the category is.
+          <code>accrued - reserved</code>. This is the amount the category is
+          behind by.
         </span>
       ),
     },

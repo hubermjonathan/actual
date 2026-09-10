@@ -2,73 +2,73 @@
 
 <ExperimentalFeatureWarning />
 
-A category's balance can look spendable when part of it is really owed to a
-future cost. Reservations split the balance so the number you read before
-spending is the money you can actually spend.
+A category balance can look like money you can spend, when part of it is owed to
+a future cost. Reservations divide the balance. The number you read before you
+spend is then the money you can spend.
 
-They are derived from the [goal templates](./goal-templates.md) already in a
-category — there is nothing extra to set up, and nothing is stored.
+Reservations come from the [goal templates](./goal-templates.md) that are
+already in a category. You do not set up anything, and Actual stores nothing.
 
 ## The three parts
 
-A category's balance is divided into:
+Actual divides a category balance into these parts:
 
-| Part          | Meaning                                                   |
-| ------------- | --------------------------------------------------------- |
-| **Reserved**  | Owed to a future cost. Should not be spent yet.           |
-| **Allowance** | For spending this month. Spendable — that is its purpose. |
-| **Spare**     | Neither. Genuinely nothing claiming it.                   |
+| Part          | Meaning                                           |
+| ------------- | ------------------------------------------------- |
+| **Reserved**  | Owed to a future cost. Do not spend it yet.       |
+| **Allowance** | For you to spend this month. That is its purpose. |
+| **Spare**     | Nothing claims this money.                        |
 
-Reserved and Allowance are both money with a job, so together they are
-**Committed**. Spare is what is left.
+Reserved and Allowance are both money with a job. Together they are
+**Committed**. Spare is the money that is left.
 
-A `#template schedule` line creates a **reservation**: money building up for a
-bill that has not arrived. A `#template 1000 [groceries]` line is an
-**allowance**: money meant to be spent this month.
+A `#template schedule` line makes a **reservation**. This is money that builds
+up for a bill that has not arrived. A `#template 1000 [groceries]` line makes an
+**allowance**. This is money for you to spend this month.
 
-A repeating **By** template is a reservation too — for a cost with no bill to
-match, like Christmas:
+A repeating **By** template also makes a reservation. Use it for a cost that has
+no bill, such as Christmas:
 
 ```
 #template 750 by 2026-12 repeat every year [christmas]
 ```
 
-The difference between the two is what ends the cycle. A bill's reservation
-resets when the payment posts. An occasion's resets when the **date passes** —
-Christmas happens whether or not the money was spent — so its target month rolls
-forward on its own. A non-repeating By template has no cycle and is not a
-reservation.
+The two types end their cycle in different ways. A bill reservation starts again
+when the payment posts. An occasion reservation starts again when the **date
+passes**, because Christmas comes whether or not you spent the money. Its target
+month then moves forward by itself. A By template that does not repeat has no
+cycle, so it is not a reservation.
 
 ## Where to see it
 
-The **Balance** column has the reserved part taken out already, so the figure
-you read before spending is the money you can spend. Hover it to see how it
-divides up:
+Actual removes the reserved part from the **Balance** column. The number you
+read before you spend is the money you can spend. Hold the pointer over it to
+see the parts:
 
 ![The balance breakdown on hover](/img/reservations/balance-hover.png)
 
-On mobile there is no hover, so the same breakdown is in the balance menu — tap
-the balance:
+Mobile has no pointer, so the same breakdown is in the balance menu. Tap the
+balance:
 
 ![The balance breakdown on mobile](/img/reservations/mobile-balance-menu.png)
 
-The panel only appears when something actually claims the balance. A category
-with no templates shows nothing extra.
+The panel appears only when something claims the balance. A category with no
+templates shows nothing more.
 
 ## Why an allowance is not a reservation
 
-Both are money you should not treat as spare, so it is tempting to count them
-together. They answer different questions, and counting them together gives the
+You should not treat either one as spare, so it is easy to count them together.
+But they answer different questions. If you count them together, you get the
 wrong answer to both.
 
-A **reservation** is money that must _not_ be spent yet. The bill has not
-arrived. Spending it means the bill cannot be paid.
+A **reservation** is money you must not spend yet. The bill has not arrived. If
+you spend the money, you cannot pay the bill.
 
-An **allowance** is money that _should_ be spent, this month, on the thing it is
-named for. Not spending it is not a saving — it is a month of groceries you did
-not buy.
+An **allowance** is money you should spend this month, on the thing it is named
+for. If you do not spend it, you did not save money. You did not buy a month of
+groceries.
 
-Take a category holding three monthly allowances:
+Look at a category with three monthly allowances:
 
 ```
 #template 1000 [groceries]
@@ -76,18 +76,19 @@ Take a category holding three monthly allowances:
 #template 35 [dog food]
 ```
 
-It is the 3rd of the month, nothing has been spent yet, and every schedule in
-the category is paid up, so nothing is reserved. Counting the allowance as spare
-gives:
+It is the 3rd of the month. You have spent nothing. Every schedule in the
+category is paid, so nothing is reserved. If you count the allowance as spare,
+you get this:
 
 | Part     | Amount   |
 | -------- | -------- |
 | Reserved | 0.00     |
 | Spare    | 1,185.00 |
 
-which reads as 1,185.00 going unused, and the category shows as **Ahead** —
-money to redirect somewhere else. It is the grocery budget.
-Separating the two gives:
+That reads as 1,185.00 that nobody uses, and the category shows as **Ahead**. It
+looks like money to move somewhere else. It is the grocery budget.
+
+If you keep the two apart, you get this:
 
 | Part      | Amount   |
 | --------- | -------- |
@@ -95,39 +96,40 @@ Separating the two gives:
 | Allowance | 1,185.00 |
 | Spare     | 0.00     |
 
-The allowance figure is what is **left** of the allowance, not what it started
-at. Buy 400.00 of groceries and it falls to 785.00, because the balance it is
-measured against has fallen too. It reaches zero when the month's allowances
-have been spent, which is what is supposed to happen.
+The allowance figure shows what is left of the allowance, not the amount it
+started at. Buy 400.00 of groceries and it falls to 785.00, because the balance
+it measures against also falls. It reaches zero when you have spent the month's
+allowances, which is the correct result.
 
 ## Moving money out
 
-Transfers out of a category are capped at its Balance — the figure with
-reservations already taken out — so money building up for a bill cannot be moved
-somewhere else by accident.
+Actual limits a transfer out of a category to its Balance, which is the figure
+with the reservations already removed. You then cannot move money that is
+building up for a bill by mistake.
 
-This limit applies to **Transfer**, not to **Cover**. Cover pulls money _into_ a
-category that has overspent, and a reservation is no reason to block that.
+This limit applies to **Transfer**. It does not apply to **Cover**. Cover moves
+money into a category that has overspent, and a reservation is not a reason to
+stop that.
 
 :::note
-The cap prevents the accident, not a determined raid. The same money is still
-reachable by editing the budgeted amount directly, from the mobile budget, or
-through the API. Treat it as a guard rail rather than a lock.
+The limit stops a mistake. It does not stop you if you want the money. You can
+still get it by changing the budgeted amount, from the mobile budget, or through
+the API. Treat it as a guard, not as a lock.
 :::
 
 ## How much is reserved
 
-Each claim accrues evenly across its period. A $ 1,053 bill due in six months
-holds $ 175.50 after one month, $ 351 after two, and so on. Once the bill is
-paid the schedule rolls forward and the claim starts again from zero.
+Each claim collects the same amount in each period. A $ 1,053 bill that is due
+in six months holds $ 175.50 after one month, and $ 351 after two months. After
+you pay the bill, the schedule moves forward and the claim starts again at zero.
 
-If the balance cannot cover everything, claims are settled in due-date order —
-the soonest bill is funded first.
+If the balance cannot pay for everything, Actual fills the claims in due-date
+order. The bill that is due first gets its money first.
 
 ## Through the API
 
-`getReservations` returns the same figures for a month, so a script can report
-on them without reading the budget by hand:
+`getReservations` returns the same values for a month. A script can then report
+on them, and you do not have to read the budget yourself:
 
 ```js
 const rows = await api.getReservations('2026-09');
@@ -136,23 +138,22 @@ const rows = await api.getReservations('2026-09');
 //    claims: [...], allowances: [...] }]
 ```
 
-Amounts are integer cents, and the figures are derived on each call rather than
-stored. See the [API reference](../api/reference.md#getreservations).
+All amounts are whole cents. Actual calculates the values on each call and does
+not store them. See the [API reference](../api/reference.md#getreservations).
 
 ## Status
 
 | Status        | Meaning                                              |
 | ------------- | ---------------------------------------------------- |
-| **On pace**   | Every claim holds what it should by now.             |
-| **Shortfall** | The balance is short of what should have been saved. |
-| **Ahead**     | More is held than is owed so far.                    |
-| **Funded**    | Every future cost is covered in full.                |
+| **On pace**   | Each claim holds the correct amount for today.       |
+| **Shortfall** | The balance is less than the amount you should hold. |
+| **Ahead**     | You hold more than you owe up to now.                |
+| **Funded**    | Every future cost has all of its money.              |
 
-A category with no templates has no status — there is nothing to measure.
+A category with no templates has no status, because there is nothing to measure.
 
 :::note
-Reservations describe what a category owes. They do not change how much is
-budgeted; that is decided by the templates themselves. If a category
-persistently shows a shortfall, see the
-[Fixed Flag](./goal-templates.md#fixed-flag).
+Reservations tell you what a category owes. They do not change the budgeted
+amount. The templates set that amount. If a category always shows a shortfall,
+see the [Fixed Flag](./goal-templates.md#fixed-flag).
 :::

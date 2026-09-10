@@ -378,8 +378,8 @@ describe('API CRUD operations', () => {
       group_id: groupId,
     });
 
-    // An allowance is money to spend this month, so it is committed rather
-    // than spare — even with nothing reserved against a future cost.
+    // An allowance is money to spend this month. It is committed, not spare,
+    // even when nothing is reserved for a future cost.
     await api.updateNote(categoryId, '#template 100 [test-allowance]');
     // Reservations read the templates stored on the category, which the app
     // refreshes when a note is saved. Nothing does that for a note written

@@ -285,7 +285,7 @@ export const scheduleModel = {
 };
 
 /**
- * One claim on a category's balance — a bill the category is saving towards.
+ * One claim on a category balance. This is a bill the category saves towards.
  *
  * All amounts are integer cents, like everywhere else in the API. `accrued` is
  * a fraction of the target and is rounded, so per-claim figures can differ from
@@ -331,15 +331,15 @@ export type APICategoryReservationsEntity = {
   balance: number;
   /** Owed to a future cost. Should not be spent yet. */
   reserved: number;
-  /** Allowance left for this month. Spendable — that is its purpose. */
+  /** The allowance left for this month. You can spend it. That is its purpose. */
   allowance: number;
-  /** `reserved + allowance` — the part of the balance that has a job. */
+  /** `reserved + allowance`. The part of the balance that has a job. */
   committed: number;
   /** `balance - committed`. Genuinely nothing claiming it. */
   spare: number;
   /** What should be set aside across every claim, held or not. */
   accrued: number;
-  /** `accrued - reserved` — how far behind the category is in total. */
+  /** `accrued - reserved`. The total amount the category is behind by. */
   shortfall: number;
   /** Every claim's full future cost. */
   target: number;
