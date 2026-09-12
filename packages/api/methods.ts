@@ -157,7 +157,7 @@ export function getReservations(
   month: string,
   options: { categoryId?: APICategoryEntity['id'] } = {},
 ) {
-  return send('api/reservations', { month, categoryId: options.categoryId });
+  return send('api/reservations', { month, ...options });
 }
 
 export function setBudgetAmount(
