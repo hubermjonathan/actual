@@ -24,7 +24,7 @@ import {
 import { makeAmountGrey } from '#components/budget/util';
 import { NotesButton } from '#components/NotesButton';
 import { CellValue, CellValueText } from '#components/spreadsheet/CellValue';
-import { Field, Row, SheetCell } from '#components/table';
+import { Cell, Field, Row, SheetCell } from '#components/table';
 import type { SheetCellProps } from '#components/table';
 import { useCategoryScheduleGoalTemplateIndicator } from '#hooks/useCategoryScheduleGoalTemplateIndicator';
 import { useFormat } from '#hooks/useFormat';
@@ -563,20 +563,22 @@ function GroupBalanceLessReserved({ group, month }: GroupBalanceProps) {
   );
   const reserved = useReservedTotal(month, categoryIds) ?? 0;
 
+  // Cell, not Field: Field has no privacy filter, so the group balance would
+  // stay readable in privacy mode while the cells beside it blur.
   return (
-    <Field
+    <Cell
       name="balance"
       width="flex"
+      textAlign="right"
       style={{
         fontWeight: 600,
         paddingRight: styles.monthRightPadding,
-        textAlign: 'right',
+        ...styles.tnum,
       }}
-    >
-      <Text style={{ ...styles.tnum, fontWeight: 600 }}>
-        {format((balance ?? 0) - reserved, 'financial')}
-      </Text>
-    </Field>
+      value={String((balance ?? 0) - reserved)}
+      formatter={value => format(value, 'financial')}
+      privacyFilter
+    />
   );
 }
 
