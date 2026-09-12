@@ -195,13 +195,17 @@ function templateToLine(
       return result.trim();
     }
     case 'schedule': {
-      // schedule syntax: #template[-prio] schedule <name> [full] [ [increase/decrease N%] ]
+      // schedule syntax: #template[-prio] schedule [full] <name> [modifier]
+      // The grammar allows one modifier, so [fixed] and an adjustment cannot
+      // both appear on the same line.
       let result = `${prefix} schedule`;
       if (template.full) {
         result += ' full';
       }
       result += ` ${template.name}`;
-      if (template.adjustment !== undefined) {
+      if (template.fixed) {
+        result += ' [fixed]';
+      } else if (template.adjustment !== undefined) {
         const adj = template.adjustment;
         const op = adj >= 0 ? 'increase' : 'decrease';
         const val = Math.abs(adj);
@@ -213,9 +217,7 @@ function templateToLine(
     case 'percentage': {
       // #template[-prio] <percent>% of [previous ]<category>
       const prev = template.previous ? 'previous ' : '';
-      return `${prefix} ${trimTrailingZeros(template.percent)}% of ${prev}${
-        template.category
-      }`.trim();
+      return `${prefix} ${trimTrailingZeros(template.percent)}% of ${prev}${template.category}`.trim();
     }
     case 'periodic': {
       // #template[-prio] <amount> repeat every <n> <period>(s) starting <date> [limit]

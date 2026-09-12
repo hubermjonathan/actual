@@ -409,14 +409,12 @@ export async function getReservations({
     const balance = await getSheetValue(sheetName, `leftover-${category.id}`);
     const categoryTemplates = templates[category.id] ?? [];
 
-    const { claims: scheduleClaims } = categoryTemplates.length
-      ? await getScheduleReservationClaims(
-          categoryTemplates,
-          month,
-          category,
-          currency,
-        )
-      : { claims: [] };
+    const scheduleClaims = await getScheduleReservationClaims(
+      categoryTemplates,
+      month,
+      category,
+      currency,
+    );
 
     // A repeating `by` target is a claim that has no bill, such as Christmas
     // or an anniversary. The calendar ends its cycle, not a payment. That is

@@ -17,6 +17,7 @@ import type { CategoryEntity, TransactionEntity } from '#types/models';
 import type { ScheduleTemplate, Template } from '#types/models/templates';
 
 import { getSheetValue, isTrackingBudget } from './actions';
+import { accruedToDate } from './reservations';
 import type { ReservationClaim } from './reservations';
 
 type ScheduleTemplateTarget = {
@@ -308,11 +309,11 @@ function getMonthlyBaseContribution(schedule: ScheduleTemplateTarget) {
  * the pooled claims must not be credited with money that is already spoken for.
  */
 function getAccruedToDate(schedule: ScheduleTemplateTarget) {
-  const rate = getMonthlyBaseContribution(schedule);
-  return Math.min(
-    schedule.target,
-    Math.max(0, schedule.target - rate * schedule.num_months),
-  );
+  return accruedToDate({
+    target: schedule.target,
+    monthlyRate: getMonthlyBaseContribution(schedule),
+    monthsRemaining: schedule.num_months,
+  });
 }
 
 function getSinkingBaseContributionTotal(t: ScheduleTemplateTarget[]) {
@@ -346,9 +347,11 @@ export async function getScheduleReservationClaims(
   current_month: string,
   category: CategoryEntity,
   currency: Currency,
-): Promise<{ claims: ReservationClaim[]; errors: string[] }> {
+): Promise<ReservationClaim[]> {
   const scheduleTemplates = template_lines.filter(t => t.type === 'schedule');
-  const { t, errors } = await createScheduleList(
+  if (!scheduleTemplates.length) return [];
+
+  const { t } = await createScheduleList(
     scheduleTemplates,
     current_month,
     category,
@@ -361,10 +364,9 @@ export async function getScheduleReservationClaims(
   // owe? It therefore reads the schedule's stored `next_date`, which moves
   // forward after you pay a bill. Without this, a claim you paid earlier in the
   // month keeps a reservation against a balance it has already taken.
+  // createScheduleList already drops completed schedules.
   const claims: ReservationClaim[] = [];
   for (const c of t) {
-    if (c.completed !== 0) continue;
-
     const stored = await db.first<
       Pick<db.DbScheduleNextDate, 'local_next_date'>
     >('SELECT local_next_date FROM schedules_next_date WHERE schedule_id = ?', [
@@ -389,7 +391,7 @@ export async function getScheduleReservationClaims(
     });
   }
 
-  return { claims, errors };
+  return claims;
 }
 
 export async function runSchedule(
@@ -438,7 +440,7 @@ export async function runSchedule(
   const t_sinking = t_allSinking.filter(c => !c.template.fixed);
   const fixedContribution = getSinkingBaseContributionTotal(t_fixed);
   const fixedHeld = t_fixed.reduce((sum, c) => sum + getAccruedToDate(c), 0);
-  const poolBalance = Math.max(0, last_month_balance - fixedHeld);
+  const poolBalance = last_month_balance - fixedHeld;
 
   const numSubMonthly = t.t.filter(isSubMonthly).length;
   const totalPayMonthOf = getPayMonthOfTotal(t_payMonthOf);

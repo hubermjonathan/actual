@@ -67,7 +67,7 @@ export function ReservationsProvider({
     }
 
     let mounted = true;
-    Promise.all(
+    void Promise.all(
       months.map(month =>
         send('budget/get-reservations', { month })
           .then(rows => [month, rows] as [string, CategoryReservationsResult[]])
@@ -112,40 +112,15 @@ export function useCategoryReservations(
   );
 }
 
-function useFieldTotal(
-  month: string,
-  categoryIds: Array<CategoryEntity['id']>,
-  field: 'reserved' | 'allowance',
-): number | null {
-  const byMonth = useContext(ReservationsContext);
-  return useMemo(() => {
-    const forMonth = byMonth.get(month);
-    if (!forMonth) return null;
-    let total = 0;
-    let found = false;
-    for (const id of categoryIds) {
-      const r = forMonth.get(id);
-      if (r) {
-        total += r[field];
-        found = true;
-      }
-    }
-    return found ? total : null;
-  }, [byMonth, month, categoryIds, field]);
-}
-
-/** Summed reservations across the given categories, for group rows. */
+/** Reservations summed across the given categories, for group rows. */
 export function useReservedTotal(
   month: string,
   categoryIds: Array<CategoryEntity['id']>,
-): number | null {
-  return useFieldTotal(month, categoryIds, 'reserved');
-}
-
-/** Summed allowance money across the given categories, for group rows. */
-export function useAllowanceTotal(
-  month: string,
-  categoryIds: Array<CategoryEntity['id']>,
-): number | null {
-  return useFieldTotal(month, categoryIds, 'allowance');
+): number {
+  const byMonth = useContext(ReservationsContext);
+  const forMonth = byMonth.get(month);
+  return categoryIds.reduce(
+    (total, id) => total + (forMonth?.get(id)?.reserved ?? 0),
+    0,
+  );
 }

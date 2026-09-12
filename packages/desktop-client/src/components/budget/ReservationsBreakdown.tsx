@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
+import { AlignedText } from '@actual-app/components/aligned-text';
 import type { CSSProperties } from '@actual-app/components/styles';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
@@ -17,33 +18,6 @@ export type ReservationsBreakdownProps = {
   reservations: CategoryReservationsResult | null;
   style?: CSSProperties;
 };
-
-function BreakdownRow({
-  label,
-  amount,
-  bold,
-  color,
-}: {
-  label: string;
-  amount: string;
-  bold?: boolean;
-  color?: string;
-}) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 16,
-        fontWeight: bold ? 600 : undefined,
-        color,
-      }}
-    >
-      <Text>{label}</Text>
-      <Text style={styles.tnum}>{amount}</Text>
-    </View>
-  );
-}
 
 /**
  * How a category balance divides up.
@@ -75,18 +49,19 @@ export function ReservationsBreakdown({
     <View style={{ padding: 10, minWidth: 220, ...style }}>
       {reservations.reserved > 0 && (
         <>
-          <BreakdownRow
-            label={t('Reserved')}
-            amount={format(reservations.reserved, 'financial')}
+          <AlignedText
+            left={t('Reserved')}
+            right={format(reservations.reserved, 'financial')}
+            rightStyle={styles.tnum}
           />
           {reservations.claims
             .filter(c => c.accrued > 0)
             .sort((a, b) => b.accrued - a.accrued)
             .map(c => (
               <View key={c.name} style={{ paddingLeft: 12, opacity: 0.75 }}>
-                <BreakdownRow
-                  label={c.name}
-                  amount={
+                <AlignedText
+                  left={c.name}
+                  right={
                     c.onTrack
                       ? format(c.reserved, 'financial')
                       : `${format(c.reserved, 'financial')} / ${format(
@@ -94,9 +69,12 @@ export function ReservationsBreakdown({
                           'financial',
                         )}`
                   }
-                  color={
-                    c.onTrack ? undefined : theme.templateNumberUnderFunded
-                  }
+                  rightStyle={styles.tnum}
+                  style={{
+                    color: c.onTrack
+                      ? undefined
+                      : theme.templateNumberUnderFunded,
+                  }}
                 />
               </View>
             ))}
@@ -104,15 +82,17 @@ export function ReservationsBreakdown({
       )}
       {reservations.allowance > 0 && (
         <>
-          <BreakdownRow
-            label={t('Allowance')}
-            amount={format(reservations.allowance, 'financial')}
+          <AlignedText
+            left={t('Allowance')}
+            right={format(reservations.allowance, 'financial')}
+            rightStyle={styles.tnum}
           />
           {reservations.allowances.map(a => (
             <View key={a.label} style={{ paddingLeft: 12, opacity: 0.75 }}>
-              <BreakdownRow
-                label={a.label}
-                amount={format(a.amount, 'financial')}
+              <AlignedText
+                left={a.label}
+                right={format(a.amount, 'financial')}
+                rightStyle={styles.tnum}
               />
             </View>
           ))}
@@ -125,10 +105,11 @@ export function ReservationsBreakdown({
           paddingTop: 6,
         }}
       >
-        <BreakdownRow
-          label={t('Spare')}
-          amount={format(reservations.spare, 'financial')}
-          bold
+        <AlignedText
+          left={t('Spare')}
+          right={format(reservations.spare, 'financial')}
+          rightStyle={styles.tnum}
+          style={{ fontWeight: 600 }}
         />
         {reservations.status && (
           <Text

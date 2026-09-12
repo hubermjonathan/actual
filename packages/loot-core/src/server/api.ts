@@ -481,7 +481,7 @@ handlers['api/reservations'] = async function ({ month, categoryId }) {
     month,
     categoryId,
   });
-  return reservations.map(reservationsModel.toExternal);
+  return reservations.map(r => reservationsModel.toExternal(r));
 };
 
 handlers['api/budget-set-amount'] = withMutation(async function ({
@@ -1056,9 +1056,7 @@ handlers['api/schedule-update'] = withMutation(async function ({
               break;
             default:
               throw APIError(
-                `Invalid amount operator: ${String(
-                  value,
-                )}. Expected: is, isapprox, or isbetween`,
+                `Invalid amount operator: ${String(value)}. Expected: is, isapprox, or isbetween`,
               );
           }
           sched._conditions[amountIndex].op = convertedOp;

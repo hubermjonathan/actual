@@ -408,6 +408,10 @@ describe('unparse/parse round-trip', () => {
     '#template schedule full Mortgage',
     '#template schedule Netflix [increase 10%]',
     '#template schedule full Groceries [decrease 5%]',
+    // [fixed] changes the budgeted amount, so losing it on a rewrite changes
+    // the budget
+    '#template schedule Taxes [fixed]',
+    '#template schedule full Insurance [fixed]',
     // percentage
     '#template 50% of Utilities',
     '#template 75% of previous Dining Out',
