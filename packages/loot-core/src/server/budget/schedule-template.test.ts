@@ -5,7 +5,10 @@ import type { Currency } from '#shared/currencies';
 import type { CategoryEntity } from '#types/models';
 
 import { isTrackingBudget } from './actions';
-import { runSchedule } from './schedule-template';
+import {
+  getScheduleReservationClaims,
+  runSchedule,
+} from './schedule-template';
 
 vi.mock('#server/db');
 vi.mock('./actions');
@@ -800,5 +803,82 @@ describe('runSchedule', () => {
 
     expect(pooled.to_budget).toBe(5000);
     expect(fixed.to_budget).toBe(10000);
+  });
+});
+
+describe('getScheduleReservationClaims', () => {
+  const template_lines = [
+    {
+      type: 'schedule',
+      name: 'Test Schedule',
+      priority: 0,
+      directive: 'template',
+    } as const,
+  ];
+
+  // db.first serves two queries here: the schedule row that createScheduleList
+  // reads, and the stored next date that the claim reads.
+  function mockSchedule(storedNextDate: number | null) {
+    vi.mocked(db.first).mockImplementation(async (query: string) =>
+      query.includes('schedules_next_date')
+        ? storedNextDate == null
+          ? undefined
+          : { local_next_date: storedNextDate }
+        : { id: 1, completed: 0 },
+    );
+    vi.mocked(getRuleForSchedule).mockResolvedValue(
+      makeRule({ start: '2024-08-01', amount: -10000, frequency: 'monthly' }),
+    );
+    vi.mocked(isTrackingBudget).mockReturnValue(false);
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(db.getAccounts).mockResolvedValue([]);
+  });
+
+  it('prefers the stored next date over the budget month occurrence', async () => {
+    // The bill for August is paid, so the schedule has rolled to September.
+    // createScheduleList still reports August, because August had to fund it.
+    mockSchedule(20240901);
+
+    const { claims } = await getScheduleReservationClaims(
+      template_lines,
+      '2024-08-01',
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(claims).toHaveLength(1);
+    expect(claims[0].nextDate).toBe('2024-09-01');
+    expect(claims[0].monthsRemaining).toBe(1);
+  });
+
+  it('falls back to the budget month occurrence when no date is stored', async () => {
+    mockSchedule(null);
+
+    const { claims } = await getScheduleReservationClaims(
+      template_lines,
+      '2024-08-01',
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(claims).toHaveLength(1);
+    expect(claims[0].nextDate).toBe('2024-08-01');
+    expect(claims[0].monthsRemaining).toBe(0);
+  });
+
+  it('reports the fixed flag from the template', async () => {
+    mockSchedule(null);
+
+    const { claims } = await getScheduleReservationClaims(
+      [{ ...template_lines[0], fixed: true }],
+      '2024-08-01',
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(claims[0].fixed).toBe(true);
   });
 });
