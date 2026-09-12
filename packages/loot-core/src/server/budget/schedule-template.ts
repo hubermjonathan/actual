@@ -17,6 +17,7 @@ import type { CategoryEntity, TransactionEntity } from '#types/models';
 import type { ScheduleTemplate, Template } from '#types/models/templates';
 
 import { getSheetValue, isTrackingBudget } from './actions';
+import { accruedToDate } from './reservations';
 import type { ReservationClaim } from './reservations';
 
 type ScheduleTemplateTarget = {
@@ -308,11 +309,11 @@ function getMonthlyBaseContribution(schedule: ScheduleTemplateTarget) {
  * the pooled claims must not be credited with money that is already spoken for.
  */
 function getAccruedToDate(schedule: ScheduleTemplateTarget) {
-  const rate = getMonthlyBaseContribution(schedule);
-  return Math.min(
-    schedule.target,
-    Math.max(0, schedule.target - rate * schedule.num_months),
-  );
+  return accruedToDate({
+    target: schedule.target,
+    monthlyRate: getMonthlyBaseContribution(schedule),
+    monthsRemaining: schedule.num_months,
+  });
 }
 
 function getSinkingBaseContributionTotal(t: ScheduleTemplateTarget[]) {
@@ -346,9 +347,11 @@ export async function getScheduleReservationClaims(
   current_month: string,
   category: CategoryEntity,
   currency: Currency,
-): Promise<{ claims: ReservationClaim[]; errors: string[] }> {
+): Promise<ReservationClaim[]> {
   const scheduleTemplates = template_lines.filter(t => t.type === 'schedule');
-  const { t, errors } = await createScheduleList(
+  if (!scheduleTemplates.length) return [];
+
+  const { t } = await createScheduleList(
     scheduleTemplates,
     current_month,
     category,
@@ -388,7 +391,7 @@ export async function getScheduleReservationClaims(
     });
   }
 
-  return { claims, errors };
+  return claims;
 }
 
 export async function runSchedule(

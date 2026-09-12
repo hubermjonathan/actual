@@ -89,9 +89,16 @@ export type CategoryReservations = {
  * rounds the total once. If we round first and then add, the category looks one
  * cent ahead or behind for no reason. We round the totals at the end instead.
  */
-export function accruedToDate(claim: ReservationClaim): number {
-  const remaining = claim.monthlyRate * claim.monthsRemaining;
-  return Math.min(claim.target, Math.max(0, claim.target - remaining));
+export function accruedToDate({
+  target,
+  monthlyRate,
+  monthsRemaining,
+}: Pick<
+  ReservationClaim,
+  'target' | 'monthlyRate' | 'monthsRemaining'
+>): number {
+  const remaining = monthlyRate * monthsRemaining;
+  return Math.min(target, Math.max(0, target - remaining));
 }
 
 /**

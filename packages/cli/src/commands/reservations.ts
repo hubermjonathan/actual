@@ -44,44 +44,40 @@ export function registerReservationsCommand(program: Command) {
     .command('reservations')
     .description('Show what a category balance owes and what is spare');
 
-  reservations
-    .command('list <month>')
-    .description(
-      'Reserved, allowance and spare per category (YYYY-MM). Table and CSV omit the per-claim detail; use `claims` for that.',
-    )
-    .option('--category <id>', 'Narrow to a single category')
-    .action(async (month: string, cmdOpts) => {
-      const opts = program.opts();
-      await withConnection(
-        opts,
-        async () => {
-          const result = await api.getReservations(month, {
-            categoryId: cmdOpts.category,
-          });
-          printOutput(
-            opts.format === 'json' ? result : summaryRows(result),
-            opts.format,
-          );
-        },
-        { mutates: false },
-      );
-    });
+  // Both subcommands read the same data and differ only in the rows they
+  // print, so they share one registration.
+  const addSubcommand = (
+    name: string,
+    description: string,
+    rows: (reservations: Reservations, format: string) => unknown,
+  ) =>
+    reservations
+      .command(`${name} <month>`)
+      .description(description)
+      .option('--category <id>', 'Narrow to a single category')
+      .action(async (month: string, cmdOpts) => {
+        const opts = program.opts();
+        await withConnection(
+          opts,
+          async () => {
+            const result = await api.getReservations(month, {
+              categoryId: cmdOpts.category,
+            });
+            printOutput(rows(result, opts.format), opts.format);
+          },
+          { mutates: false },
+        );
+      });
 
-  reservations
-    .command('claims <month>')
-    .description('One row per claim: what it is owed and what is set aside')
-    .option('--category <id>', 'Narrow to a single category')
-    .action(async (month: string, cmdOpts) => {
-      const opts = program.opts();
-      await withConnection(
-        opts,
-        async () => {
-          const result = await api.getReservations(month, {
-            categoryId: cmdOpts.category,
-          });
-          printOutput(claimRows(result), opts.format);
-        },
-        { mutates: false },
-      );
-    });
+  addSubcommand(
+    'list',
+    'Reserved, allowance and spare per category (YYYY-MM). Table and CSV omit the per-claim detail; use `claims` for that.',
+    (result, format) => (format === 'json' ? result : summaryRows(result)),
+  );
+
+  addSubcommand(
+    'claims',
+    'One row per claim: what it is owed and what is set aside',
+    result => claimRows(result),
+  );
 }

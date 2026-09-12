@@ -5,10 +5,7 @@ import type { Currency } from '#shared/currencies';
 import type { CategoryEntity } from '#types/models';
 
 import { isTrackingBudget } from './actions';
-import {
-  getScheduleReservationClaims,
-  runSchedule,
-} from './schedule-template';
+import { getScheduleReservationClaims, runSchedule } from './schedule-template';
 
 vi.mock('#server/db');
 vi.mock('./actions');
@@ -693,70 +690,42 @@ describe('runSchedule', () => {
     expect(result.to_budget).toBe(0);
   });
 
-  it('contributes the same amount each month when marked fixed', async () => {
-    // 1,200.00 a year is 100.00 a month regardless of what has been saved.
-    const template_lines = [
-      {
-        type: 'schedule',
-        name: 'Test Schedule',
-        fixed: true,
-        priority: 0,
-        directive: 'template',
-      } as const,
-    ];
-    mockSingleSchedule({
-      start: '2024-08-01',
-      amount: -120000,
-      frequency: 'yearly',
-    });
+  // The point of [fixed] is that the balance does not change the amount, so the
+  // same assertion must hold for an empty and an already-funded category.
+  it.each([0, 120000])(
+    'contributes the same amount each month when marked fixed (balance %i)',
+    async last_month_balance => {
+      // 1,200.00 a year is 100.00 a month regardless of what has been saved.
+      const template_lines = [
+        {
+          type: 'schedule',
+          name: 'Test Schedule',
+          fixed: true,
+          priority: 0,
+          directive: 'template',
+        } as const,
+      ];
+      mockSingleSchedule({
+        start: '2024-08-01',
+        amount: -120000,
+        frequency: 'yearly',
+      });
 
-    const result = await runSchedule(
-      template_lines,
-      '2024-09-01',
-      0,
-      0,
-      0,
-      0,
-      [],
-      defaultCategory,
-      defaultCurrency,
-    );
+      const result = await runSchedule(
+        template_lines,
+        '2024-09-01',
+        0,
+        0,
+        last_month_balance,
+        0,
+        [],
+        defaultCategory,
+        defaultCurrency,
+      );
 
-    expect(result.to_budget).toBe(10000);
-  });
-
-  it('still contributes the fixed amount when the balance already covers it', async () => {
-    // Without [fixed] a balance this size makes the pooled allocator contribute
-    // nothing; a fixed claim keeps to its schedule.
-    const template_lines = [
-      {
-        type: 'schedule',
-        name: 'Test Schedule',
-        fixed: true,
-        priority: 0,
-        directive: 'template',
-      } as const,
-    ];
-    mockSingleSchedule({
-      start: '2024-08-01',
-      amount: -120000,
-      frequency: 'yearly',
-    });
-
-    const result = await runSchedule(
-      template_lines,
-      '2024-09-01',
-      120000,
-      0,
-      120000,
-      0,
-      [],
-      defaultCategory,
-      defaultCurrency,
-    );
-
-    expect(result.to_budget).toBe(10000);
-  });
+      expect(result.to_budget).toBe(10000);
+    },
+  );
 
   it('differs from the pooled behaviour when partly saved', async () => {
     // 1,200.00 due in 11 months with 600.00 already saved.
@@ -842,7 +811,7 @@ describe('getScheduleReservationClaims', () => {
     // createScheduleList still reports August, because August had to fund it.
     mockSchedule(20240901);
 
-    const { claims } = await getScheduleReservationClaims(
+    const claims = await getScheduleReservationClaims(
       template_lines,
       '2024-08-01',
       defaultCategory,
@@ -857,7 +826,7 @@ describe('getScheduleReservationClaims', () => {
   it('falls back to the budget month occurrence when no date is stored', async () => {
     mockSchedule(null);
 
-    const { claims } = await getScheduleReservationClaims(
+    const claims = await getScheduleReservationClaims(
       template_lines,
       '2024-08-01',
       defaultCategory,
@@ -872,7 +841,7 @@ describe('getScheduleReservationClaims', () => {
   it('reports the fixed flag from the template', async () => {
     mockSchedule(null);
 
-    const { claims } = await getScheduleReservationClaims(
+    const claims = await getScheduleReservationClaims(
       [{ ...template_lines[0], fixed: true }],
       '2024-08-01',
       defaultCategory,

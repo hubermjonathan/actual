@@ -253,14 +253,7 @@ export function BalanceWithCarryover({
         </>
       );
     },
-    [
-      budgetedValue,
-      format,
-      getDifferenceToGoal,
-      goalValue,
-      longGoalValue,
-      t,
-    ],
+    [budgetedValue, format, getDifferenceToGoal, goalValue, longGoalValue, t],
   );
 
   return (

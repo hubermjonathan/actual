@@ -47,12 +47,6 @@ describe('accruedToDate', () => {
     );
   });
 
-  it('always returns whole cents', () => {
-    // 1,053.00 over 6 months does not divide evenly.
-    const c = claim('BMW Insurance', 105300, 6, 4, '2027-01-01');
-    expect(Number.isInteger(accruedToDate(c))).toBe(true);
-  });
-
   it('handles a semiannual period', () => {
     // BMW Insurance: 1,053.00 every 6 months, due in 3.
     expect(

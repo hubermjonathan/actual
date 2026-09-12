@@ -481,7 +481,7 @@ handlers['api/reservations'] = async function ({ month, categoryId }) {
     month,
     categoryId,
   });
-  return reservations.map(reservationsModel.toExternal);
+  return reservations.map(r => reservationsModel.toExternal(r));
 };
 
 handlers['api/budget-set-amount'] = withMutation(async function ({
