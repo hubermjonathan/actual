@@ -438,7 +438,7 @@ export async function runSchedule(
   const t_sinking = t_allSinking.filter(c => !c.template.fixed);
   const fixedContribution = getSinkingBaseContributionTotal(t_fixed);
   const fixedHeld = t_fixed.reduce((sum, c) => sum + getAccruedToDate(c), 0);
-  const poolBalance = Math.max(0, last_month_balance - fixedHeld);
+  const poolBalance = last_month_balance - fixedHeld;
 
   const numSubMonthly = t.t.filter(isSubMonthly).length;
   const totalPayMonthOf = getPayMonthOfTotal(t_payMonthOf);
