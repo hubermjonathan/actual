@@ -202,7 +202,7 @@ export function getByReservationClaims(
   for (const template of templates) {
     const period = template.annual
       ? (template.repeat || 1) * 12
-      : (template.repeat ?? null);
+      : template.repeat;
     if (!period) continue;
 
     // Roll the target forward until it is in the future, the same way `runBy`
@@ -226,7 +226,7 @@ export function getByReservationClaims(
       target,
       nextDate: `${targetMonth}-01`,
       monthlyRate: target / period,
-      monthsRemaining: Math.max(0, monthsRemaining),
+      monthsRemaining,
     });
   }
 

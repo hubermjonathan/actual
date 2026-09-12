@@ -19,7 +19,7 @@ function summaryRows(reservations: Reservations) {
     allowance: r.allowance,
     committed: r.committed,
     spare: r.spare,
-    status: r.status ?? '',
+    status: r.status,
   }));
 }
 

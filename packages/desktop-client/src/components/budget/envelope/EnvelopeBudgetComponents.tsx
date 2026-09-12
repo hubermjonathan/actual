@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useRef, useState } from 'react';
+import React, { memo, useRef, useState } from 'react';
 import type { ComponentProps, CSSProperties, MouseEvent } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -557,11 +557,10 @@ type GroupBalanceProps = {
 function GroupBalanceLessReserved({ group, month }: GroupBalanceProps) {
   const format = useFormat();
   const balance = useEnvelopeSheetValue(envelopeBudget.groupBalance(group.id));
-  const categoryIds = useMemo(
-    () => (group.categories ?? []).map(c => c.id),
-    [group.categories],
+  const reserved = useReservedTotal(
+    month,
+    (group.categories ?? []).map(c => c.id),
   );
-  const reserved = useReservedTotal(month, categoryIds) ?? 0;
 
   // Cell, not Field: Field has no privacy filter, so the group balance would
   // stay readable in privacy mode while the cells beside it blur.

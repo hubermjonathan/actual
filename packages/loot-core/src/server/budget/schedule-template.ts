@@ -361,10 +361,9 @@ export async function getScheduleReservationClaims(
   // owe? It therefore reads the schedule's stored `next_date`, which moves
   // forward after you pay a bill. Without this, a claim you paid earlier in the
   // month keeps a reservation against a balance it has already taken.
+  // createScheduleList already drops completed schedules.
   const claims: ReservationClaim[] = [];
   for (const c of t) {
-    if (c.completed !== 0) continue;
-
     const stored = await db.first<
       Pick<db.DbScheduleNextDate, 'local_next_date'>
     >('SELECT local_next_date FROM schedules_next_date WHERE schedule_id = ?', [
