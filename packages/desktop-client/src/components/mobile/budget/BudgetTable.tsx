@@ -424,6 +424,8 @@ function BudgetTableHeader({
   const { t } = useTranslation();
   const format = useFormat();
   const [budgetType = 'envelope'] = useSyncedPref('budgetType');
+  const [showBudgetedPercent = false, setShowBudgetedPercentPref] =
+    useLocalPref('mobile.showBudgetedPercent');
   const buttonStyle = {
     padding: 0,
     backgroundColor: 'transparent',
@@ -498,8 +500,11 @@ function BudgetTableHeader({
             {({ type: formatType, value }) => (
               <Button
                 variant="bare"
-                isDisabled={show3Columns}
-                onPress={toggleSpentColumn}
+                onPress={
+                  show3Columns
+                    ? () => setShowBudgetedPercentPref(!showBudgetedPercent)
+                    : toggleSpentColumn
+                }
                 style={{
                   ...buttonStyle,
                   width: columnWidth,

@@ -12,11 +12,16 @@ import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
-import { amountToInteger, integerToAmount } from '@actual-app/core/shared/util';
+import {
+  amountToInteger,
+  currencyToAmount,
+  integerToAmount,
+} from '@actual-app/core/shared/util';
 import { t } from 'i18next';
 
 import { BudgetMenu } from '#components/budget/envelope/BudgetMenu';
 import { useEnvelopeSheetValue } from '#components/budget/envelope/EnvelopeBudgetComponents';
+import { useShareOfBudgeted } from '#components/budget/percentOfBudgeted';
 import {
   Modal,
   ModalCloseButton,
@@ -63,6 +68,10 @@ export function EnvelopeBudgetMenuModal({
   const budgeted = useEnvelopeSheetValue(
     envelopeBudget.catBudgeted(categoryId),
   );
+  // The sheet only moves on commit, so the share follows the input while you
+  // type.
+  const [typedAmount, setTypedAmount] = useState<number | null>(null);
+  const share = useShareOfBudgeted(budgeted ?? 0, typedAmount);
   const { data: category } = useCategory(categoryId);
   const mobileCalculatorEnabled = useFeatureFlag('mobileCalculator');
 
@@ -119,11 +128,21 @@ export function EnvelopeBudgetMenuModal({
               value={integerToAmount(budgeted || 0)}
               onEnter={() => state.close()}
               onChange={_onUpdateBudget}
+              onChangeValue={text => {
+                const parsed = currencyToAmount(text);
+                setTypedAmount(parsed == null ? null : amountToInteger(parsed));
+              }}
               data-testid="budget-amount"
               autoFocus
               autoFocusDelay={150}
               variant="large"
             />
+            <Text
+              style={{ color: theme.pageTextSubdued }}
+              data-testid="budget-percent"
+            >
+              {share}
+            </Text>
           </View>
           <View
             style={{

@@ -10,11 +10,16 @@ import * as monthUtils from '@actual-app/core/shared/months';
 import type { CategoryEntity } from '@actual-app/core/types/models';
 import { AutoTextSize } from 'auto-text-size';
 
+import {
+  formatPercentOfTotal,
+  useTotalBudgeted,
+} from '#components/budget/percentOfBudgeted';
 import { makeAmountGrey } from '#components/budget/util';
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { CellValue } from '#components/spreadsheet/CellValue';
 import { useFormat } from '#hooks/useFormat';
 import { useLocale } from '#hooks/useLocale';
+import { useLocalPref } from '#hooks/useLocalPref';
 import { useNotes } from '#hooks/useNotes';
 import { useSyncedPref } from '#hooks/useSyncedPref';
 import { useUndo } from '#hooks/useUndo';
@@ -52,6 +57,12 @@ export function BudgetCell<
   const { showUndoNotification } = useUndo();
   const [budgetType = 'envelope'] = useSyncedPref('budgetType');
   const categoryNotes = useNotes(category.id);
+  const [showBudgetedPercent = false] = useLocalPref(
+    'mobile.showBudgetedPercent',
+  );
+  const totalBudgeted = useTotalBudgeted();
+  // The tracking budget has its own totals, so it keeps the amount.
+  const showPercent = showBudgetedPercent && budgetType === 'envelope';
 
   const onSaveNotes = useCallback(async (id: string, notes: string) => {
     await send('notes-save', { id, note: notes });
@@ -212,7 +223,9 @@ export function BudgetCell<
                   fontSize: 12,
                 }}
               >
-                {format(value, type)}
+                {showPercent
+                  ? formatPercentOfTotal(value, totalBudgeted)
+                  : format(value, type)}
               </AutoTextSize>
             </PrivacyFilter>
           </Button>
