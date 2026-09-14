@@ -851,3 +851,65 @@ describe('getScheduleReservationClaims', () => {
     expect(claims[0].fixed).toBe(true);
   });
 });
+
+describe('a template that names a deleted schedule', () => {
+  // Deleting a schedule leaves its template line in the note.
+  const template_lines = [
+    {
+      type: 'schedule',
+      name: 'Ghost Schedule',
+      priority: 0,
+      directive: 'template',
+    } as const,
+    {
+      type: 'schedule',
+      name: 'Test Schedule',
+      priority: 0,
+      directive: 'template',
+    } as const,
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(db.getAccounts).mockResolvedValue([]);
+    vi.mocked(db.first).mockImplementation(
+      async (query: string, params?: unknown[]) => {
+        if (query.includes('schedules_next_date')) return undefined;
+        const name = (params as string[] | undefined)?.[0];
+        return name === 'Test Schedule' ? { id: 1, completed: 0 } : null;
+      },
+    );
+    vi.mocked(getRuleForSchedule).mockResolvedValue(
+      makeRule({ start: '2024-08-01', amount: -10000, frequency: 'monthly' }),
+    );
+    vi.mocked(isTrackingBudget).mockReturnValue(false);
+  });
+
+  it('reports the missing schedule and budgets the rest', async () => {
+    const result = await runSchedule(
+      template_lines,
+      '2024-08-01',
+      0,
+      0,
+      0,
+      0,
+      [],
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(result.errors).toEqual(['Schedule Ghost Schedule does not exist.']);
+    expect(result.to_budget).toBe(10000);
+  });
+
+  it('claims for the schedules that are left', async () => {
+    const claims = await getScheduleReservationClaims(
+      template_lines,
+      '2024-08-01',
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(claims.map(c => c.name)).toEqual(['Test Schedule']);
+  });
+});

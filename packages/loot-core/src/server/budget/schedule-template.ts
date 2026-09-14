@@ -49,16 +49,23 @@ async function createScheduleList(
     // Prefer scheduleId so renames don't break the lookup; fall back to name
     // for notes-source templates (and legacy ui-source data) that only carry
     // the name.
-    const {
-      id: sid,
-      name: scheduleName,
-      completed,
-    } = await db.first<Pick<db.DbSchedule, 'id' | 'name' | 'completed'>>(
+    const schedule = await db.first<
+      Pick<db.DbSchedule, 'id' | 'name' | 'completed'>
+    >(
       template.scheduleId
         ? 'SELECT id, name, completed FROM schedules WHERE id = ? AND tombstone = 0'
         : 'SELECT id, name, completed FROM schedules WHERE TRIM(name) = ? AND tombstone = 0',
       [template.scheduleId ?? template.name],
     );
+    // Deleting a schedule leaves its template line in the note, so the lookup
+    // can find nothing. Report it and carry on, as a past schedule does.
+    if (!schedule) {
+      errors.push(
+        `Schedule ${template.name ?? template.scheduleId} does not exist.`,
+      );
+      continue;
+    }
+    const { id: sid, name: scheduleName, completed } = schedule;
     const rule = await getRuleForSchedule(sid);
     const conditions = rule.serialize().conditions;
     const { date: dateConditions, amount: amountCondition } =
