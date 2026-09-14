@@ -17,12 +17,14 @@ import * as monthUtils from '@actual-app/core/shared/months';
 import { css } from '@emotion/css';
 
 import { BalanceWithCarryover } from '#components/budget/BalanceWithCarryover';
+import { useShareOfBudgeted } from '#components/budget/percentOfBudgeted';
 import {
   useCategoryReservations,
   useReservedTotal,
 } from '#components/budget/ReservationsContext';
 import { makeAmountGrey } from '#components/budget/util';
 import { NotesButton } from '#components/NotesButton';
+import { PrivacyFilter } from '#components/PrivacyFilter';
 import { CellValue, CellValueText } from '#components/spreadsheet/CellValue';
 import { Cell, Field, Row, SheetCell } from '#components/table';
 import type { SheetCellProps } from '#components/table';
@@ -193,6 +195,13 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
 }: CategoryMonthProps) {
   const { t } = useTranslation();
   const format = useFormat();
+
+  // The sheet only moves on commit, so the share follows the input while you
+  // type.
+  const budgeted =
+    useEnvelopeSheetValue(envelopeBudget.catBudgeted(category.id)) ?? 0;
+  const [typedAmount, setTypedAmount] = useState<number | null>(null);
+  const share = useShareOfBudgeted(budgeted, typedAmount);
 
   const budgetMenuTriggerRef = useRef(null);
   const balanceMenuTriggerRef = useRef(null);
@@ -410,7 +419,12 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
             unformatExpr: format.fromEdit,
           }}
           inputProps={{
+            onChange: e => {
+              const parsed = format.fromEdit(e.target.value);
+              setTypedAmount(typeof parsed === 'number' ? parsed : null);
+            },
             onBlur: () => {
+              setTypedAmount(null);
               onEdit(null);
             },
             style: {
@@ -424,6 +438,13 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
             });
           }}
         />
+        <Field
+          name="budget-percent"
+          width={55}
+          style={{ textAlign: 'right', color: theme.pageTextSubdued }}
+        >
+          <PrivacyFilter>{share}</PrivacyFilter>
+        </Field>
       </View>
       <Field name="spent" width="flex" style={{ textAlign: 'right' }}>
         <View
