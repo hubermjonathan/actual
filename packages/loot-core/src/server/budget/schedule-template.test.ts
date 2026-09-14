@@ -792,7 +792,7 @@ describe('getScheduleReservationClaims', () => {
       query.includes('schedules_next_date')
         ? storedNextDate == null
           ? undefined
-          : { local_next_date: storedNextDate }
+          : { next_date: storedNextDate }
         : { id: 1, completed: 0 },
     );
     vi.mocked(getRuleForSchedule).mockResolvedValue(

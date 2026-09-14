@@ -374,14 +374,21 @@ export async function getScheduleReservationClaims(
   // createScheduleList already drops completed schedules.
   const claims: ReservationClaim[] = [];
   for (const c of t) {
-    const stored = await db.first<
-      Pick<db.DbScheduleNextDate, 'local_next_date'>
-    >('SELECT local_next_date FROM schedules_next_date WHERE schedule_id = ?', [
-      c.scheduleId,
-    ]);
+    // `local_next_date` only holds the answer while its timestamp still
+    // matches `base_next_date_ts`. Once the schedule's date is changed, the
+    // base date is the one that counts. Same rule as `v_schedules.next_date`
+    // in aql/schema/index.ts.
+    const stored = await db.first<{ next_date: number | null }>(
+      `SELECT CASE
+         WHEN local_next_date_ts = base_next_date_ts THEN local_next_date
+         ELSE base_next_date
+       END AS next_date
+       FROM schedules_next_date WHERE schedule_id = ?`,
+      [c.scheduleId],
+    );
     const nextDate =
-      stored?.local_next_date != null
-        ? fromDateRepr(stored.local_next_date)
+      stored?.next_date != null
+        ? fromDateRepr(stored.next_date)
         : c.next_date_string;
     const monthsRemaining = monthUtils.differenceInCalendarMonths(
       nextDate,
