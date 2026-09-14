@@ -20,7 +20,6 @@ const AMOUNT_FIELDS = new Set([
   'accrued',
   'shortfall',
   'target',
-  'monthlyRate',
 ]);
 
 function isAmountValue(key: string, value: unknown): value is number {

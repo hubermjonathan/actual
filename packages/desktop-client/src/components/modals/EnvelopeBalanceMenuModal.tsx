@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import { Trans } from 'react-i18next';
 
@@ -11,12 +11,15 @@ import {
   BalanceWithCarryover,
   CarryoverIndicator,
 } from '#components/budget/BalanceWithCarryover';
-import {
-  CategoryReservationsProvider,
-  ReservationsBreakdownSection,
-  useCategoryReservationsValue,
-} from '#components/budget/CategoryReservationsSection';
 import { BalanceMenu } from '#components/budget/envelope/BalanceMenu';
+import {
+  hasReservationDetail,
+  ReservationsBreakdown,
+} from '#components/budget/ReservationsBreakdown';
+import {
+  ReservationsProvider,
+  useCategoryReservations,
+} from '#components/budget/ReservationsContext';
 import {
   Modal,
   ModalCloseButton,
@@ -42,19 +45,21 @@ export function EnvelopeBalanceMenuModal({
   month,
   ...props
 }: EnvelopeBalanceMenuModalProps) {
+  const months = useMemo(() => [month], [month]);
   return (
-    <CategoryReservationsProvider month={month} categoryId={props.categoryId}>
+    <ReservationsProvider months={months}>
       <EnvelopeBalanceMenuModalInner {...props} month={month} />
-    </CategoryReservationsProvider>
+    </ReservationsProvider>
   );
 }
 
 function EnvelopeBalanceMenuModalInner({
+  month,
   categoryId,
   onCarryover,
   onTransfer,
   onCover,
-}: Omit<EnvelopeBalanceMenuModalProps, 'month'> & { month: string }) {
+}: EnvelopeBalanceMenuModalProps) {
   const defaultMenuItemStyle: CSSProperties = {
     ...styles.mobileMenuItem,
     color: theme.menuItemText,
@@ -63,7 +68,7 @@ function EnvelopeBalanceMenuModalInner({
   };
 
   const { data: category } = useCategory(categoryId);
-  const reservations = useCategoryReservationsValue();
+  const reservations = useCategoryReservations(month, categoryId);
 
   if (!category) {
     return null;
@@ -126,7 +131,16 @@ function EnvelopeBalanceMenuModalInner({
           </View>
           {/* Touch has no hover, so what the desktop shows in a tooltip lives
               here instead. */}
-          <ReservationsBreakdownSection />
+          {hasReservationDetail(reservations) && (
+            <View
+              style={{
+                borderTop: `1px solid ${theme.pillBorder}`,
+                paddingTop: 4,
+              }}
+            >
+              <ReservationsBreakdown reservations={reservations} />
+            </View>
+          )}
           <BalanceMenu
             categoryId={categoryId}
             getItemStyle={() => defaultMenuItemStyle}

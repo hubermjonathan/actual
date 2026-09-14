@@ -12,6 +12,7 @@ import type {
 } from '#types/models';
 
 import type { CategoryReservationsResult } from './budget/goal-template';
+import type { Allowance, SettledClaim } from './budget/reservations';
 import type { RemoteFile } from './cloud-storage';
 import * as models from './models';
 
@@ -285,105 +286,40 @@ export const scheduleModel = {
 };
 
 /**
- * One claim on a category balance. This is a bill the category saves towards.
+ * How one category balance divides up in a given month.
  *
- * All amounts are integer cents, like everywhere else in the API. `accrued` is
- * a fraction of the target and is rounded, so per-claim figures can differ from
- * the category total by a cent; the category's own fields are authoritative.
- */
-export type APIReservationClaimEntity = {
-  /** The schedule this claim tracks. */
-  name: string;
-  /** Full amount of the future cost. */
-  target: number;
-  /** Next occurrence, `YYYY-MM-DD`. Claims are settled in this order. */
-  nextDate: string;
-  /** What this claim accrues each month. */
-  monthlyRate: number;
-  /** Whole months until the cost lands. 0 means it is due this month. */
-  monthsRemaining: number;
-  /** What should already be set aside for it by now. */
-  accrued: number;
-  /** What the balance actually covers. Never more than `accrued`. */
-  reserved: number;
-  /** `accrued - reserved`. Above zero means this claim is behind. */
-  shortfall: number;
-  onTrack: boolean;
-  /** Written `[fixed]`: accrues at a flat rate rather than sharing the pot. */
-  fixed: boolean;
-};
-
-/** One allowance in a category, e.g. `#template 1000 [groceries]`. */
-export type APIAllowanceEntity = {
-  label: string;
-  amount: number;
-};
-
-/**
- * How one category's balance divides up in a given month.
+ * These mirror the server types so the API follows them. The only differences
+ * are `committed`, which the API sums for callers, and `fixed`, which is always
+ * a boolean here. See `budget/reservations.ts` for what each field means, and
+ * the API reference for the published documentation.
  *
- * Derived on every call and never stored, so the figures follow the balance
- * without anything to invalidate.
+ * All amounts are whole cents. Actual calculates the values on each call and
+ * does not store them. `accrued` is rounded for each claim, so the per-claim
+ * values can differ from the category total by one cent. The category fields
+ * are the correct ones.
  */
-export type APICategoryReservationsEntity = {
-  categoryId: CategoryEntity['id'];
-  categoryName: string;
-  balance: number;
-  /** Owed to a future cost. Should not be spent yet. */
-  reserved: number;
-  /** The allowance left for this month. You can spend it. That is its purpose. */
-  allowance: number;
+export type APIAllowanceEntity = Allowance;
+
+export type APIReservationClaimEntity = SettledClaim & { fixed: boolean };
+
+export type APICategoryReservationsEntity = Omit<
+  CategoryReservationsResult,
+  'claims'
+> & {
   /** `reserved + allowance`. The part of the balance that has a job. */
   committed: number;
-  /** `balance - committed`. Genuinely nothing claiming it. */
-  spare: number;
-  /** What should be set aside across every claim, held or not. */
-  accrued: number;
-  /** `accrued - reserved`. The total amount the category is behind by. */
-  shortfall: number;
-  /** Every claim's full future cost. */
-  target: number;
-  /** `null` when the category has nothing to measure against. */
-  status: 'behind' | 'onPace' | 'ahead' | 'funded' | null;
   claims: APIReservationClaimEntity[];
-  allowances: APIAllowanceEntity[];
 };
 
 export const reservationsModel = {
-  toExternal(
-    reservations: CategoryReservationsResult,
-  ): APICategoryReservationsEntity {
+  toExternal({
+    claims,
+    ...rest
+  }: CategoryReservationsResult): APICategoryReservationsEntity {
     return {
-      categoryId: reservations.categoryId,
-      categoryName: reservations.categoryName,
-      balance: reservations.balance,
-      reserved: reservations.reserved,
-      allowance: reservations.allowance,
-      // Summed here rather than in the core so the API publishes the same
-      // umbrella figure the budget's Committed column shows, without callers
-      // having to know it is a sum.
-      committed: reservations.reserved + reservations.allowance,
-      spare: reservations.spare,
-      accrued: reservations.accrued,
-      shortfall: reservations.shortfall,
-      target: reservations.target,
-      status: reservations.status,
-      claims: reservations.claims.map(claim => ({
-        name: claim.name,
-        target: claim.target,
-        nextDate: claim.nextDate,
-        monthlyRate: claim.monthlyRate,
-        monthsRemaining: claim.monthsRemaining,
-        accrued: claim.accrued,
-        reserved: claim.reserved,
-        shortfall: claim.shortfall,
-        onTrack: claim.onTrack,
-        fixed: !!claim.fixed,
-      })),
-      allowances: reservations.allowances.map(allowance => ({
-        label: allowance.label,
-        amount: allowance.amount,
-      })),
+      ...rest,
+      committed: rest.reserved + rest.allowance,
+      claims: claims.map(claim => ({ ...claim, fixed: !!claim.fixed })),
     };
   },
 };

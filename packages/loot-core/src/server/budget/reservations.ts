@@ -89,9 +89,16 @@ export type CategoryReservations = {
  * rounds the total once. If we round first and then add, the category looks one
  * cent ahead or behind for no reason. We round the totals at the end instead.
  */
-export function accruedToDate(claim: ReservationClaim): number {
-  const remaining = claim.monthlyRate * claim.monthsRemaining;
-  return Math.min(claim.target, Math.max(0, claim.target - remaining));
+export function accruedToDate({
+  target,
+  monthlyRate,
+  monthsRemaining,
+}: Pick<
+  ReservationClaim,
+  'target' | 'monthlyRate' | 'monthsRemaining'
+>): number {
+  const remaining = monthlyRate * monthsRemaining;
+  return Math.min(target, Math.max(0, target - remaining));
 }
 
 /**
@@ -202,7 +209,7 @@ export function getByReservationClaims(
   for (const template of templates) {
     const period = template.annual
       ? (template.repeat || 1) * 12
-      : (template.repeat ?? null);
+      : template.repeat;
     if (!period) continue;
 
     // Roll the target forward until it is in the future, the same way `runBy`
@@ -226,7 +233,7 @@ export function getByReservationClaims(
       target,
       nextDate: `${targetMonth}-01`,
       monthlyRate: target / period,
-      monthsRemaining: Math.max(0, monthsRemaining),
+      monthsRemaining,
     });
   }
 

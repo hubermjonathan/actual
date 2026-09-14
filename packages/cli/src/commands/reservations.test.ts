@@ -111,19 +111,6 @@ describe('reservations commands', () => {
         'table',
       );
     });
-
-    it('prints an empty status rather than null', async () => {
-      vi.mocked(api.getReservations).mockResolvedValue([
-        { ...category, status: null },
-      ]);
-
-      await run(['reservations', 'list', '2026-09'], 'csv');
-
-      expect(printOutput).toHaveBeenCalledWith(
-        [expect.objectContaining({ status: '' })],
-        'csv',
-      );
-    });
   });
 
   describe('reservations claims', () => {

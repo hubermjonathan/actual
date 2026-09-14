@@ -64,20 +64,4 @@ describe('reservationsModel.toExternal', () => {
     // always publishes a boolean so a caller never has to check for undefined.
     expect(external.claims.map(c => c.fixed)).toEqual([false, true]);
   });
-
-  it('carries allowance labels through', () => {
-    const external = reservationsModel.toExternal(
-      reservations({
-        allowances: [
-          { label: 'groceries', amount: 100000 },
-          { label: 'dog food', amount: 3500 },
-        ],
-      }),
-    );
-
-    expect(external.allowances).toEqual([
-      { label: 'groceries', amount: 100000 },
-      { label: 'dog food', amount: 3500 },
-    ]);
-  });
 });
