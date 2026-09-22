@@ -10,8 +10,16 @@ import type { CategoryReservationsResult } from '@actual-app/core/server/budget/
 
 import { useFormat } from '#hooks/useFormat';
 
+/**
+ * Whether there is a breakdown worth showing.
+ *
+ * Gate on whether the category *has* claims or allowances, not on whether their
+ * current amounts are above zero. A fully spent allowance and a claim that
+ * accrues nothing this month are both worth seeing, and hiding them makes
+ * "spent it all" look identical to "there is none".
+ */
 export function hasReservationDetail(r: CategoryReservationsResult | null) {
-  return !!r && (r.reserved > 0 || r.allowance > 0);
+  return !!r && (r.claims.length > 0 || r.allowances.length > 0);
 }
 
 export type ReservationsBreakdownProps = {
@@ -47,16 +55,22 @@ export function ReservationsBreakdown({
 
   return (
     <View style={{ padding: 10, minWidth: 220, ...style }}>
-      {reservations.reserved > 0 && (
+      {reservations.claims.length > 0 && (
         <>
           <AlignedText
             left={t('Reserved')}
             right={format(reservations.reserved, 'financial')}
             rightStyle={styles.tnum}
           />
-          {reservations.claims
-            .filter(c => c.accrued > 0)
-            .sort((a, b) => b.accrued - a.accrued)
+          {[...reservations.claims]
+            // Claims accruing nothing this month are still claims. A monthly
+            // subscription funds in the month it is due, so it reads 0 until
+            // then - and a category that hides it looks like it has no
+            // subscriptions at all. Sort those to the bottom, in due order.
+            .sort(
+              (a, b) =>
+                b.accrued - a.accrued || a.nextDate.localeCompare(b.nextDate),
+            )
             .map(c => (
               <View key={c.name} style={{ paddingLeft: 12, opacity: 0.75 }}>
                 <AlignedText
@@ -80,11 +94,18 @@ export function ReservationsBreakdown({
             ))}
         </>
       )}
-      {reservations.allowance > 0 && (
+      {reservations.allowances.length > 0 && (
         <>
+          {/*
+            Two different numbers, and both are needed. The header is the size
+            of the month's allowance, which is what the lines beneath it add up
+            to. `Left` is how much of it survives. Showing only one of them was
+            the original bug: the header read the remainder while the lines read
+            the totals, and both were labelled "Allowance".
+          */}
           <AlignedText
             left={t('Allowance')}
-            right={format(reservations.allowance, 'financial')}
+            right={format(reservations.allowanceTotal, 'financial')}
             rightStyle={styles.tnum}
           />
           {reservations.allowances.map(a => (
@@ -96,6 +117,19 @@ export function ReservationsBreakdown({
               />
             </View>
           ))}
+          <View style={{ paddingLeft: 12, opacity: 0.75 }}>
+            <AlignedText
+              left={t('Left')}
+              right={format(reservations.allowance, 'financial')}
+              rightStyle={styles.tnum}
+              style={{
+                color:
+                  reservations.allowance === 0
+                    ? theme.templateNumberUnderFunded
+                    : undefined,
+              }}
+            />
+          </View>
         </>
       )}
       <View
