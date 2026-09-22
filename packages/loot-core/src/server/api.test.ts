@@ -1,6 +1,7 @@
 import * as db from '#server/db';
 import * as sheet from '#server/sheet';
 import { getBankSyncError } from '#shared/errors';
+import type { TransactionEntity } from '#types/models';
 import type { ServerHandlers } from '#types/server-handlers';
 
 import { app as accountGroupsApp } from './account-groups/app';
@@ -239,11 +240,12 @@ describe('API handlers', () => {
     });
 
     it('waits for the batch update to finish before resolving', async () => {
+      const transaction = { id: 'trans1' } as TransactionEntity;
       let finished = false;
       handlers['transactions-batch-update'] = vi.fn(async () => {
         await Promise.resolve();
         finished = true;
-        return { added: [], updated: ['trans1'], deleted: [] };
+        return { added: [], updated: [transaction], deleted: [], errors: [] };
       });
 
       await expect(
@@ -251,21 +253,22 @@ describe('API handlers', () => {
           id: 'trans1',
           fields: { notes: 'paid' },
         }),
-      ).resolves.toEqual(['trans1']);
+      ).resolves.toEqual([transaction]);
       expect(finished).toBe(true);
     });
 
     it('waits for the batch delete to finish before resolving', async () => {
+      const transaction = { id: 'trans1' } as TransactionEntity;
       let finished = false;
       handlers['transactions-batch-update'] = vi.fn(async () => {
         await Promise.resolve();
         finished = true;
-        return { added: [], updated: [], deleted: ['trans1'] };
+        return { added: [], updated: [], deleted: [transaction], errors: [] };
       });
 
       await expect(
         handlers['api/transaction-delete']({ id: 'trans1' }),
-      ).resolves.toEqual(['trans1']);
+      ).resolves.toEqual([transaction]);
       expect(finished).toBe(true);
     });
   });
