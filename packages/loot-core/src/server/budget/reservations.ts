@@ -38,9 +38,16 @@ export type ReservationClaim = {
 export type SettledClaim = ReservationClaim & {
   /** What should already be held for this claim by now. */
   accrued: number;
-  /** How much of the balance actually covers it. Never exceeds `accrued`. */
+  /**
+   * What this claim holds. Always equals `accrued`.
+   *
+   * A reservation is a promise about a bill that has not arrived. It is not
+   * reduced because the month's allowance was overspent - that would move the
+   * problem somewhere nobody is looking. When the balance cannot cover
+   * everything, the category reports it once, in `spare`.
+   */
   reserved: number;
-  /** `accrued - reserved`. Non-zero means this claim is behind. */
+  /** Always 0. Kept so callers do not have to change. A claim is never short. */
   shortfall: number;
   onTrack: boolean;
 };
@@ -76,11 +83,22 @@ export type CategoryReservations = {
    * what remains of it.
    */
   allowanceTotal: number;
-  /** `balance - reserved - allowance`. More than the future costs and the allowances need. */
+  /**
+   * `balance - reserved - allowance`. More than the future costs and the
+   * allowances need.
+   *
+   * **Negative means overspent.** Claims keep their full accrual and the
+   * allowance takes what is left, so a month spent past its allowance shows the
+   * deficit here rather than quietly shrinking a reservation. It is a number the
+   * user can see and choose how to cover.
+   */
   spare: number;
   /** What should be held across all claims, ignoring whether it is there. */
   accrued: number;
-  /** `accrued - reserved`. The total amount the category is behind by. */
+  /**
+   * How far the balance falls short of everything the category owes. `-spare`
+   * when spare is negative, otherwise 0.
+   */
   shortfall: number;
   /** Every claim's full future cost, the point at which nothing more is needed. */
   target: number;
@@ -117,9 +135,16 @@ export function accruedToDate({
 /**
  * Settle a category's balance against its claims.
  *
- * Claims are covered in due-date order, matching how the budget's own sinking
- * allocator consumes a balance. A claim short of its accrual reports the gap
- * rather than silently borrowing from a later one.
+ * **Claims hold their full accrual, whatever the balance.** The allowance takes
+ * what is left of the balance, and anything still missing lands in `spare` as a
+ * negative.
+ *
+ * That order is the point. An allowance is this month's money and is meant to be
+ * spent; a reservation is a promise about a bill that has not arrived. Capping
+ * reservations at the balance meant an overspent allowance quietly reduced them,
+ * in reverse due-date order, with nothing said - 22.42 of extra dinners became a
+ * hole in a birthday fund. Now the category reports the deficit once, in one
+ * place, and the user decides where to cover it from.
  */
 export function settleReservations(
   balance: number,
@@ -131,21 +156,17 @@ export function settleReservations(
     return byDate !== 0 ? byDate : a.name.localeCompare(b.name);
   });
 
-  let unallocated = Math.max(0, balance);
   // Settle with exact values first. The engine adds exact rates and rounds the
   // total once. If we round each claim and then add, the category looks one
   // cent ahead or behind for no reason.
   const exact = ordered.map(claim => {
     const accrued = accruedToDate(claim);
-    const reserved = Math.min(unallocated, accrued);
-    unallocated -= reserved;
-    return { claim, accrued, reserved };
+    return { claim, accrued, reserved: accrued };
   });
 
   const reserved = Math.round(exact.reduce((sum, c) => sum + c.reserved, 0));
   const accrued = Math.round(exact.reduce((sum, c) => sum + c.accrued, 0));
   const target = exact.reduce((sum, c) => sum + c.claim.target, 0);
-  const shortfall = Math.max(0, accrued - reserved);
 
   // These per-claim values are for display, and each one rounds on its own.
   // Their sum can differ from the category total by one cent. Use the totals
@@ -154,8 +175,8 @@ export function settleReservations(
     ...c.claim,
     accrued: Math.round(c.accrued),
     reserved: Math.round(c.reserved),
-    shortfall: Math.round(c.accrued - c.reserved),
-    onTrack: c.accrued - c.reserved < 1,
+    shortfall: 0,
+    onTrack: true,
   }));
 
   // Allowances get the money that the future costs do not need. As you spend
@@ -166,7 +187,10 @@ export function settleReservations(
     Math.max(0, balance - reserved),
     Math.max(0, allowanceTotal),
   );
+  // `balance = reserved + allowance + spare` always holds. When the balance
+  // cannot cover the claims and the allowance, this goes negative.
   const spare = balance - reserved - allowance;
+  const shortfall = Math.max(0, -spare);
 
   // A category with no claims and no allowances has nothing to be ahead of.
   let status: ReservationStatus | null;

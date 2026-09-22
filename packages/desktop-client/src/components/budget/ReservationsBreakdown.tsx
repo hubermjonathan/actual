@@ -75,20 +75,8 @@ export function ReservationsBreakdown({
               <View key={c.name} style={{ paddingLeft: 12, opacity: 0.75 }}>
                 <AlignedText
                   left={c.name}
-                  right={
-                    c.onTrack
-                      ? format(c.reserved, 'financial')
-                      : `${format(c.reserved, 'financial')} / ${format(
-                          c.accrued,
-                          'financial',
-                        )}`
-                  }
+                  right={format(c.reserved, 'financial')}
                   rightStyle={styles.tnum}
-                  style={{
-                    color: c.onTrack
-                      ? undefined
-                      : theme.templateNumberUnderFunded,
-                  }}
                 />
               </View>
             ))}
@@ -139,11 +127,22 @@ export function ReservationsBreakdown({
           paddingTop: 6,
         }}
       >
+        {/*
+          A negative spare is an overspend, not a small spare. Claims keep
+          their full accrual, so this is the one place the category says it
+          cannot cover everything - name it for what it is.
+        */}
         <AlignedText
-          left={t('Spare')}
-          right={format(reservations.spare, 'financial')}
+          left={reservations.spare < 0 ? t('Overspent') : t('Spare')}
+          right={format(Math.abs(reservations.spare), 'financial')}
           rightStyle={styles.tnum}
-          style={{ fontWeight: 600 }}
+          style={{
+            fontWeight: 600,
+            color:
+              reservations.spare < 0
+                ? theme.templateNumberUnderFunded
+                : undefined,
+          }}
         />
         {reservations.status && (
           <Text
