@@ -140,6 +140,48 @@ describe('settleReservations', () => {
   });
 });
 
+describe('a claim settled during the month', () => {
+  it('carries the flag through settlement', () => {
+    // Picklr: monthly, due on the 20th, paid on the 20th. The schedule has
+    // moved on to next month so the claim accrues nothing - the same reading as
+    // a claim that is simply not due yet. The flag is what tells them apart.
+    const paid: ReservationClaim = {
+      ...claim('Picklr', 19753, 1, 1, '2026-10-20'),
+      settledThisMonth: true,
+    };
+    const r = settleReservations(0, [paid]);
+
+    expect(r.claims[0].settledThisMonth).toBe(true);
+    expect(r.claims[0].accrued).toBe(0);
+    expect(r.reserved).toBe(0);
+  });
+
+  it('leaves the flag unset on a claim that is merely not due yet', () => {
+    // Claude: monthly, next due the 11th of next month, never charged this
+    // month. Accrues nothing, and nothing was spent.
+    const r = settleReservations(0, [
+      claim('Claude', 2211, 1, 1, '2026-10-11'),
+    ]);
+
+    expect(r.claims[0].settledThisMonth).toBeUndefined();
+    expect(r.claims[0].accrued).toBe(0);
+  });
+
+  it('does not let a settled claim hold any of the balance', () => {
+    // The reservation was spent on the bill. It must not take the balance a
+    // second time.
+    const paid: ReservationClaim = {
+      ...claim('Picklr', 19753, 1, 1, '2026-10-20'),
+      settledThisMonth: true,
+    };
+    const upcoming = claim('Christmas', 75000, 12, 2, '2026-11-01');
+    const r = settleReservations(100000, [paid, upcoming]);
+
+    expect(r.reserved).toBe(62500); // Christmas only
+    expect(r.spare).toBe(37500);
+  });
+});
+
 describe('allowances and status', () => {
   const groceries = [{ label: 'groceries', amount: 100000 }];
 

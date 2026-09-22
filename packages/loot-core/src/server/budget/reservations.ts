@@ -33,6 +33,16 @@ export type ReservationClaim = {
    * types apart.
    */
   fixed?: boolean;
+  /**
+   * The bill this claim tracks fell due in the budget month and has been paid.
+   * The reservation did its job and was spent.
+   *
+   * Such a claim accrues nothing, because it is collecting again from zero for
+   * the next occurrence. Without this flag it is indistinguishable from a claim
+   * that is simply not due yet, and a closed month cannot be read back: every
+   * reservation that worked has erased itself.
+   */
+  settledThisMonth?: boolean;
 };
 
 export type SettledClaim = ReservationClaim & {

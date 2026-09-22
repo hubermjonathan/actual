@@ -395,6 +395,19 @@ export async function getScheduleReservationClaims(
       current_month,
     );
 
+    // Whether this month's bill has already been paid.
+    //
+    // `next_date_string` is the occurrence the recurrence rule gives for the
+    // budget month, and does not move. `nextDate` is the schedule's stored next
+    // date, which advances past an occurrence once it is paid. When the
+    // occurrence lands in this month and the stored date has gone past it, the
+    // reservation was spent on the bill it was for.
+    const occurrence = c.next_date_string;
+    const settledThisMonth =
+      !!occurrence &&
+      monthUtils.getMonth(occurrence) === monthUtils.getMonth(current_month) &&
+      nextDate > occurrence;
+
     claims.push({
       name: c.name,
       target: c.target,
@@ -402,6 +415,7 @@ export async function getScheduleReservationClaims(
       monthlyRate: c.full ? c.target : getMonthlyBaseContribution(c),
       monthsRemaining: Math.max(0, monthsRemaining),
       fixed: !!c.template.fixed,
+      settledThisMonth,
     });
   }
 
