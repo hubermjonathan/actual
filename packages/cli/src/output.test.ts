@@ -236,3 +236,17 @@ describe('printOutput', () => {
     expect(writeSpy).toHaveBeenCalledWith('\n');
   });
 });
+
+describe('reservations amount fields', () => {
+  it('formats allowanceTotal and monthlyRate like every other money field', () => {
+    // Both arrive as integer cents from the api. Missing them from
+    // AMOUNT_FIELDS printed raw values beside formatted ones in the same row:
+    // `allowance,616.67` next to `allowanceTotal,118500`.
+    const csv = formatOutput(
+      [{ allowance: 61667, allowanceTotal: 118500, monthlyRate: 17550 }],
+      'csv',
+    );
+
+    expect(csv).toContain('616.67,1185.00,175.50');
+  });
+});
