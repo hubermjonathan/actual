@@ -103,11 +103,15 @@ export function ReservationsBreakdown({
       {reservations.allowances.length > 0 && (
         <>
           {/*
-            Two different numbers, and both are needed. The header is the size
-            of the month's allowance, which is what the lines beneath it add up
-            to. `Left` is how much of it survives. Showing only one of them was
-            the original bug: the header read the remainder while the lines read
-            the totals, and both were labelled "Allowance".
+            The size of the month's allowance, which is what the lines beneath
+            add up to. It used to read `reservations.allowance` - the remainder
+            after claims - while the lines beneath read their template totals,
+            so the header and its own children disagreed and both were labelled
+            "Allowance".
+
+            How much of it is left is deliberately not shown here. For a
+            category with no claims it is just the balance again, which the row
+            already gives you.
           */}
           <AlignedText
             left={t('Allowance')}
@@ -123,19 +127,6 @@ export function ReservationsBreakdown({
               />
             </View>
           ))}
-          <View style={{ paddingLeft: 12, opacity: 0.75 }}>
-            <AlignedText
-              left={t('Left')}
-              right={format(reservations.allowance, 'financial')}
-              rightStyle={styles.tnum}
-              style={{
-                color:
-                  reservations.allowance === 0
-                    ? theme.templateNumberUnderFunded
-                    : undefined,
-              }}
-            />
-          </View>
         </>
       )}
       <View
