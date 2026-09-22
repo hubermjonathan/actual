@@ -61,8 +61,21 @@ export type CategoryReservations = {
    * Allowance money that is still in the balance. You can spend it, because
    * that is what an allowance is for. It is already promised, so it is not
    * free money.
+   *
+   * This falls as the month's allowance is spent. It is what is **left**, not
+   * what the month started with. For that, read `allowanceTotal`.
    */
   allowance: number;
+  /**
+   * What the allowance templates ask for in a month, before any of it is spent.
+   * The sum of `allowances[].amount`.
+   *
+   * `allowance` alone cannot tell a fully spent allowance from a category that
+   * has none, and cannot say how much of the month's budget is gone. Both
+   * numbers are needed: this one is the size of the allowance, `allowance` is
+   * what remains of it.
+   */
+  allowanceTotal: number;
   /** `balance - reserved - allowance`. More than the future costs and the allowances need. */
   spare: number;
   /** What should be held across all claims, ignoring whether it is there. */
@@ -173,6 +186,7 @@ export function settleReservations(
     balance,
     reserved,
     allowance,
+    allowanceTotal: Math.round(allowanceTotal),
     spare,
     accrued,
     shortfall,

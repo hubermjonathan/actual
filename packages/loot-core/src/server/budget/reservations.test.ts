@@ -160,6 +160,44 @@ describe('allowances and status', () => {
     expect(r.spare).toBe(0);
   });
 
+  it('reports the size of the allowance separately from what is left', () => {
+    // `allowance` falls as the month is spent. `allowanceTotal` does not, so a
+    // caller can say "600.00 of 1,000.00 left" instead of showing one number
+    // and leaving the reader to guess which it is.
+    const r = settleReservations(60000, [], groceries);
+
+    expect(r.allowanceTotal).toBe(100000);
+    expect(r.allowance).toBe(60000);
+  });
+
+  it('keeps the allowance total when the allowance is fully spent', () => {
+    // The case that hid Eating Out and Travel from the breakdown: spent to
+    // zero is not the same as absent, and only `allowanceTotal` can tell them
+    // apart.
+    const r = settleReservations(0, [], groceries);
+
+    expect(r.allowanceTotal).toBe(100000);
+    expect(r.allowance).toBe(0);
+  });
+
+  it('reports an allowance total of zero when there are no allowances', () => {
+    const r = settleReservations(50000, [], []);
+
+    expect(r.allowanceTotal).toBe(0);
+    expect(r.allowance).toBe(0);
+  });
+
+  it('reports the full allowance total even when claims take the balance', () => {
+    // Claims are settled first, so the allowance can be squeezed to nothing
+    // while the month still asks for the whole 1,000.00.
+    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
+    const r = settleReservations(80000, claims, groceries);
+
+    expect(r.reserved).toBe(80000);
+    expect(r.allowance).toBe(0);
+    expect(r.allowanceTotal).toBe(100000);
+  });
+
   it('reports the excess once allowances are covered', () => {
     const r = settleReservations(150000, [], groceries);
     expect(r.allowance).toBe(100000);
