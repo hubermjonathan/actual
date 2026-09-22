@@ -614,7 +614,8 @@ handlers['api/transaction-update'] = withMutation(async function ({
 
   // @ts-expect-error - fix me
   const { diff } = updateTransaction(transactions, { id, ...fields });
-  return handlers['transactions-batch-update'](diff)['updated'];
+  const { updated } = await handlers['transactions-batch-update'](diff);
+  return updated;
 });
 
 handlers['api/transaction-delete'] = withMutation(async function ({ id }) {
@@ -629,7 +630,8 @@ handlers['api/transaction-delete'] = withMutation(async function ({ id }) {
   }
 
   const { diff } = deleteTransaction(transactions, id);
-  return handlers['transactions-batch-update'](diff)['deleted'];
+  const { deleted } = await handlers['transactions-batch-update'](diff);
+  return deleted;
 });
 
 handlers['api/transactions-merge'] = withMutation(async function ({ ids }) {
