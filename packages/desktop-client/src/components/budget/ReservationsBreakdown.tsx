@@ -73,10 +73,28 @@ export function ReservationsBreakdown({
             )
             .map(c => (
               <View key={c.name} style={{ paddingLeft: 12, opacity: 0.75 }}>
+                {/*
+                  A claim whose bill was paid this month accrues nothing,
+                  exactly like one that is not due yet. Saying which is which is
+                  what makes a closed month readable: otherwise every
+                  reservation that worked looks as though it never existed.
+                */}
                 <AlignedText
-                  left={c.name}
-                  right={format(c.reserved, 'financial')}
+                  left={
+                    c.settledThisMonth
+                      ? t('{{name}} (spent)', { name: c.name })
+                      : c.name
+                  }
+                  right={format(
+                    c.settledThisMonth ? c.target : c.reserved,
+                    'financial',
+                  )}
                   rightStyle={styles.tnum}
+                  style={
+                    c.settledThisMonth
+                      ? { color: theme.pageTextSubdued }
+                      : undefined
+                  }
                 />
               </View>
             ))}

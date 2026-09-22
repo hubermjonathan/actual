@@ -821,6 +821,43 @@ describe('getScheduleReservationClaims', () => {
     expect(claims).toHaveLength(1);
     expect(claims[0].nextDate).toBe('2024-09-01');
     expect(claims[0].monthsRemaining).toBe(1);
+    // August's occurrence has been paid, which is why the stored date moved.
+    expect(claims[0].settledThisMonth).toBe(true);
+  });
+
+  it('does not call a claim settled when the stored date has not moved', async () => {
+    // The bill is due this month and has not been paid, so the stored date
+    // still points at the same occurrence createScheduleList found.
+    mockSchedule(20240801);
+
+    const claims = await getScheduleReservationClaims(
+      template_lines,
+      '2024-08-01',
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(claims[0].nextDate).toBe('2024-08-01');
+    expect(claims[0].settledThisMonth).toBe(false);
+  });
+
+  it('does not call a claim settled when its occurrence is in a later month', async () => {
+    // The schedule does not start until October, so August has no occurrence
+    // and nothing in August can have been paid.
+    mockSchedule(20241001);
+    vi.mocked(getRuleForSchedule).mockResolvedValue(
+      makeRule({ start: '2024-10-01', amount: -10000, frequency: 'monthly' }),
+    );
+
+    const claims = await getScheduleReservationClaims(
+      template_lines,
+      '2024-08-01',
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(claims[0].nextDate).toBe('2024-10-01');
+    expect(claims[0].settledThisMonth).toBe(false);
   });
 
   it('falls back to the budget month occurrence when no date is stored', async () => {
@@ -836,6 +873,7 @@ describe('getScheduleReservationClaims', () => {
     expect(claims).toHaveLength(1);
     expect(claims[0].nextDate).toBe('2024-08-01');
     expect(claims[0].monthsRemaining).toBe(0);
+    expect(claims[0].settledThisMonth).toBe(false);
   });
 
   it('reports the fixed flag from the template', async () => {
