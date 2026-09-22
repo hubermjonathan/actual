@@ -224,6 +224,52 @@ describe('API handlers', () => {
     );
   });
 
+  describe('api/transaction-update and api/transaction-delete', () => {
+    beforeEach(global.emptyDatabase());
+
+    beforeEach(async () => {
+      await prefs.loadPrefs();
+      await db.insertAccount({ id: 'acct1', name: 'Checking' });
+      await db.insertTransaction({
+        id: 'trans1',
+        account: 'acct1',
+        amount: -1000,
+        date: '2026-01-01',
+      });
+    });
+
+    it('waits for the batch update to finish before resolving', async () => {
+      let finished = false;
+      handlers['transactions-batch-update'] = vi.fn(async () => {
+        await Promise.resolve();
+        finished = true;
+        return { added: [], updated: ['trans1'], deleted: [] };
+      });
+
+      await expect(
+        handlers['api/transaction-update']({
+          id: 'trans1',
+          fields: { notes: 'paid' },
+        }),
+      ).resolves.toEqual(['trans1']);
+      expect(finished).toBe(true);
+    });
+
+    it('waits for the batch delete to finish before resolving', async () => {
+      let finished = false;
+      handlers['transactions-batch-update'] = vi.fn(async () => {
+        await Promise.resolve();
+        finished = true;
+        return { added: [], updated: [], deleted: ['trans1'] };
+      });
+
+      await expect(
+        handlers['api/transaction-delete']({ id: 'trans1' }),
+      ).resolves.toEqual(['trans1']);
+      expect(finished).toBe(true);
+    });
+  });
+
   describe('api/rule-update', () => {
     beforeEach(global.emptyDatabase());
 
