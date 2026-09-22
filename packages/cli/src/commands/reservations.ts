@@ -17,6 +17,7 @@ function summaryRows(reservations: Reservations) {
     balance: r.balance,
     reserved: r.reserved,
     allowance: r.allowance,
+    allowanceTotal: r.allowanceTotal,
     committed: r.committed,
     spare: r.spare,
     status: r.status,
@@ -32,8 +33,13 @@ function claimRows(reservations: Reservations) {
       target: c.target,
       accrued: c.accrued,
       reserved: c.reserved,
-      shortfall: c.shortfall,
-      onTrack: c.onTrack,
+      // `shortfall` and `onTrack` are no longer printed. A claim is never short
+      // now - it holds its full accrual and the category reports any gap once,
+      // as negative `spare`. They were always 0 and true, which is noise in a
+      // table. `settledThisMonth` replaces them: it says whether this claim's
+      // bill was paid during the month, which is the only reason an accrual of
+      // 0 is interesting.
+      settledThisMonth: !!c.settledThisMonth,
       fixed: c.fixed,
     })),
   );
