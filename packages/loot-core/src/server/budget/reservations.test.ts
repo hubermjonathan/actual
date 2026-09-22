@@ -67,17 +67,24 @@ describe('settleReservations', () => {
     expect(r.shortfall).toBe(0);
   });
 
-  it('reports a shortfall rather than overstating what is covered', () => {
+  it('keeps a claim whole and reports the shortfall against the category', () => {
+    // The claim needs 800.00 and the category holds 500.00. The claim is a
+    // promise about a bill, so it keeps its full accrual; the 300.00 the
+    // category cannot cover is reported once, as negative spare.
     const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
     const r = settleReservations(50000, claims);
 
-    expect(r.reserved).toBe(50000);
-    expect(r.spare).toBe(0);
-    expect(r.claims[0].shortfall).toBe(30000);
-    expect(r.claims[0].onTrack).toBe(false);
+    expect(r.reserved).toBe(80000);
+    expect(r.spare).toBe(-30000);
+    expect(r.shortfall).toBe(30000);
+    expect(r.status).toBe('behind');
+    expect(r.claims[0].reserved).toBe(80000);
+    expect(r.claims[0].shortfall).toBe(0);
   });
 
-  it('covers claims in due-date order, matching the budget allocator', () => {
+  it('lists claims in due-date order and keeps every one of them whole', () => {
+    // 300.00 in the category against 900.00 of claims. Neither claim is
+    // reduced - the category is 600.00 behind, said once.
     const claims = [
       claim('Later', 120000, 12, 6, '2027-03-01'), // needs 600.00
       claim('Sooner', 60000, 12, 6, '2026-12-01'), // needs 300.00
@@ -86,10 +93,11 @@ describe('settleReservations', () => {
 
     expect(r.claims[0].name).toBe('Sooner');
     expect(r.claims[0].reserved).toBe(30000);
-    expect(r.claims[0].onTrack).toBe(true);
     expect(r.claims[1].name).toBe('Later');
-    expect(r.claims[1].reserved).toBe(0);
-    expect(r.claims[1].shortfall).toBe(60000);
+    expect(r.claims[1].reserved).toBe(60000);
+    expect(r.claims.every(c => c.onTrack)).toBe(true);
+    expect(r.spare).toBe(-60000);
+    expect(r.shortfall).toBe(60000);
   });
 
   it('leaves the excess spare once every claim is covered', () => {
@@ -101,13 +109,13 @@ describe('settleReservations', () => {
     expect(r.spare).toBeGreaterThan(0);
   });
 
-  it('never reports negative reserved when the category is overspent', () => {
-    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')];
+  it('reports the whole hole when the category balance is negative', () => {
+    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
     const r = settleReservations(-5000, claims);
 
-    expect(r.reserved).toBe(0);
-    expect(r.spare).toBe(-5000);
-    expect(r.claims[0].shortfall).toBe(80000);
+    expect(r.reserved).toBe(80000);
+    expect(r.spare).toBe(-85000); // the 800.00 owed plus the 50.00 overdrawn
+    expect(r.shortfall).toBe(85000);
   });
 
   it('treats a category with no claims as entirely spare', () => {
@@ -188,8 +196,8 @@ describe('allowances and status', () => {
   });
 
   it('reports the full allowance total even when claims take the balance', () => {
-    // Claims are settled first, so the allowance can be squeezed to nothing
-    // while the month still asks for the whole 1,000.00.
+    // Claims hold their accrual first, so the allowance can be squeezed to
+    // nothing while the month still asks for the whole 1,000.00.
     const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
     const r = settleReservations(80000, claims, groceries);
 
@@ -205,7 +213,7 @@ describe('allowances and status', () => {
     expect(r.status).toBe('ahead');
   });
 
-  it('pays future costs before allowances', () => {
+  it('holds claims whole before the allowance takes what is left', () => {
     const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
     const r = settleReservations(150000, claims, groceries);
 
@@ -214,7 +222,26 @@ describe('allowances and status', () => {
     expect(r.spare).toBe(0);
   });
 
-  it('reports behind when a claim is short, allowances notwithstanding', () => {
+  it('does not reduce a reservation when the allowance is overspent', () => {
+    // The case this behaviour exists for. 650.00 of allowance, 672.42 spent,
+    // and 2,588.01 of claims. The old engine covered claims from whatever the
+    // balance had left and quietly cut the last one by 22.42. Now the claims
+    // are whole and the 22.42 is visible.
+    const claims = [
+      claim('Christmas', 75000, 12, 2, '2026-11-01'), // needs 625.00
+      claim('Jac Birthday', 75000, 12, 9, '2027-06-01'), // needs 187.50
+    ];
+    const allowance = [{ label: 'eating out', amount: 65000 }];
+    const r = settleReservations(78258, claims, allowance); // 22.42 overspent
+
+    expect(r.reserved).toBe(81250); // 625.00 + 187.50, both whole
+    expect(r.claims.every(c => c.reserved === c.accrued)).toBe(true);
+    expect(r.allowance).toBe(0);
+    expect(r.spare).toBe(-2992);
+    expect(r.status).toBe('behind');
+  });
+
+  it('reports behind when the balance cannot cover the claims', () => {
     const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')];
     const r = settleReservations(50000, claims, groceries);
 
