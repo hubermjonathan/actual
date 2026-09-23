@@ -37,6 +37,7 @@ import type {
 
 import { getStartingBalancePayee } from './payees';
 import { title } from './title';
+import { detectTransfers } from './transfer-detection';
 
 function BankSyncError(type: string, code: string, details?: object) {
   return { type: 'BankSyncError', category: type, code, details };
@@ -624,6 +625,8 @@ export type ReconcileTransactionsOptions = MatchTransactionsOptions & {
 export type ReconcileTransactionsResult = {
   added: string[];
   updated: string[];
+  /** Pairs of transaction ids linked as transfers, newest side first. */
+  linkedTransfers?: Array<[string, string]>;
   updatedPreview: Array<{
     transaction: TransactionEntity;
     existing?: TransactionEntity;
@@ -773,9 +776,18 @@ export async function reconcileTransactions(
     t.sort_order ??= now - index * TRANSACTION_SORT_INCREMENT;
   });
 
+  let linkedTransfers: Array<[string, string]> = [];
+
   if (!isPreview) {
     await createNewPayees(payeesToCreate, [...added, ...updated]);
     await batchUpdateTransactions({ added, updated });
+
+    // Both halves of a transfer between two synced accounts import
+    // independently, as two unrelated transactions. Link the ones that are
+    // unambiguous.
+    if (await shouldDetectTransfers()) {
+      linkedTransfers = await detectTransfers(added.map(trans => trans.id));
+    }
   }
 
   logger.log('Debug data for the operations:', {
@@ -791,7 +803,15 @@ export async function reconcileTransactions(
     added: added.map(trans => trans.id),
     updated: updated.map(trans => trans.id),
     updatedPreview,
+    linkedTransfers,
   };
+}
+
+async function shouldDetectTransfers() {
+  const { data } = await aqlQuery(
+    q('preferences').filter({ id: 'sync-detect-transfers' }).select('value'),
+  );
+  return String(data?.[0]?.value ?? 'false') === 'true';
 }
 
 export async function matchTransactions(
