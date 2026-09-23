@@ -1,12 +1,16 @@
 import * as db from '#server/db';
 import * as monthUtils from '#shared/months';
+import { validForTransfer } from '#shared/transfer';
+import type { TransactionEntity } from '#types/models';
 
 /**
  * Every account in a fully bank-synced budget imports its own side of a
  * transfer, so a payment between two accounts arrives as two unrelated
- * transactions. Nothing in Actual links two transactions that already exist:
- * `addTransfer` creates a third one, and `mergeTransactions` refuses to touch
- * two different accounts.
+ * transactions.
+ *
+ * "Make transfer" already links two selected transactions by hand, on both
+ * desktop and mobile. This does the same thing for imports, so a budget whose
+ * every account is synced does not need a dozen of those a month.
  *
  * This links them, which keeps both `imported_id`s.
  *
@@ -36,6 +40,17 @@ function isEligible(transaction: TransferCandidate) {
     !transaction.is_parent &&
     !transaction.is_child &&
     transaction.amount !== 0
+  );
+}
+
+/**
+ * The same predicate "Make transfer" enables its menu item with, so a pair this
+ * links is a pair the user could have linked by hand.
+ */
+function pairsWith(a: TransferCandidate, b: TransferCandidate) {
+  return validForTransfer(
+    a as unknown as TransactionEntity,
+    b as unknown as TransactionEntity,
   );
 }
 
@@ -82,7 +97,8 @@ export function findTransferMatch(
 
   const opposite = -transaction.amount;
 
-  // rule 2, this side
+  // rule 2, this side. `validForTransfer` rejects a same-account pair, so this
+  // asks the amount question directly.
   if (
     inWindow.some(
       candidate =>
@@ -94,10 +110,8 @@ export function findTransferMatch(
   }
 
   // rule 1
-  const candidates = inWindow.filter(
-    candidate =>
-      candidate.account !== transaction.account &&
-      candidate.amount === opposite,
+  const candidates = inWindow.filter(candidate =>
+    pairsWith(transaction, candidate),
   );
   if (candidates.length !== 1) {
     return null;
