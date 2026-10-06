@@ -234,6 +234,36 @@ name, and you do not need a comment line. They work on a
 [repeating By template](#repeated-savings) too, where the label also names the
 claim in [Reservations](./reservations.md).
 
+### Total Type
+
+A total template budgets a category **to** an amount, counting every other line in
+the category first. It adds the amount less what the other lines budget.
+
+| Syntax                             |            Budgeted Amount             |
+| ---------------------------------- | :------------------------------------: |
+| `#template total 1000 [fun money]` | $ 1000, less what the other lines take |
+
+Use it when a category holds a fixed monthly amount and some bills, and the
+whole category should stay at one number:
+
+```
+#template total 1000 [fun money]
+#template schedule Streaming
+#template schedule Phone Case
+```
+
+With the two schedules at $ 22.11 and $ 21.57, the total line adds $ 956.32 and the
+category gets $ 1000. If a schedule's price changes, the total line follows it
+without an edit.
+
+- The total line always runs after the other lines in the category, whatever its
+  priority.
+- If the other lines already cost more than the total, they keep their money: the
+  total line adds nothing, and applying templates shows a warning.
+- `#template up to 1000` is different. It refills the category's **balance** to
+  $ 1000, so it budgets less when money is left from last month. A total does not
+  look at the balance.
+
 ### By Type
 
 The **By** type of template is for saving up funds _by_ a certain month.

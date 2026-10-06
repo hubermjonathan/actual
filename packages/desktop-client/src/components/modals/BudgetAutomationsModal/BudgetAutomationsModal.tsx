@@ -72,7 +72,10 @@ export function BudgetAutomationsModal({
 
   const hasErrorTemplate =
     parsedTemplates?.some(t => t.type === 'error') ?? false;
-  const hasUnsupportedDirective = hasErrorTemplate;
+  // A `total` line has no automation editor; leave such a note to the note.
+  const hasTotalTemplate =
+    parsedTemplates?.some(t => t.type === 'total') ?? false;
+  const hasUnsupportedDirective = hasErrorTemplate || hasTotalTemplate;
 
   const incomeNameToId = new Map<string, string>();
   for (const group of categories) {

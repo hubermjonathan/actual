@@ -14,6 +14,8 @@ expr
       from,
       priority: template.priority, directive: template.directive
     }; if (label != null) t.label = label; return t }
+  / template: template _ 'total'i _ amount: amount label: label?
+    { const t = { type: 'total', amount, priority: template.priority, directive: template.directive }; if (label != null) t.label = label; return t }
   / template: template _ monthly: amount limit: limit? label: label?
     { const t = { type: 'simple', monthly, limit, priority: template.priority, directive: template.directive }; if (label != null) t.label = label; return t }
   / template: template _ limit: limit label: label?

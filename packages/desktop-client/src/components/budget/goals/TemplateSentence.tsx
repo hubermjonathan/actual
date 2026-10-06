@@ -49,6 +49,7 @@ export function TemplateSentence({
     case 'goal':
       return <LongTermGoalAutomationReadOnly template={template} />;
     case 'simple':
+    case 'total':
     case 'error': {
       const type = template.type;
       return (

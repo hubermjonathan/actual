@@ -350,6 +350,16 @@ async function processTemplate(
   await setBudgets(month, budgetList);
   await setGoals(month, goalList);
 
+  const warnings = contexts.flatMap(c => c.warnings);
+  if (warnings.length > 0) {
+    return {
+      type: 'warning',
+      sticky: true,
+      message: 'templates-applied',
+      count: contexts.length,
+      pre: warnings.join(`\n\n`),
+    };
+  }
   return {
     type: 'message',
     message: 'templates-applied',

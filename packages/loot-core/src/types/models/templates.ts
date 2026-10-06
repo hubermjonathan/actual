@@ -112,6 +112,18 @@ export type RemainderTemplate = {
   priority: null;
 } & BaseTemplate;
 
+/**
+ * `#template total 1000 [fun money]`: budget the category to 1000 in all,
+ * counting every other line in it first. It adds 1000 minus what the other
+ * lines budget, and never less than 0.
+ */
+export type TotalTemplate = {
+  type: 'total';
+  amount: number;
+  /** A name only. */
+  label?: string;
+} & BaseTemplateWithPriority;
+
 export type RefillTemplate = {
   type: 'refill';
 } & BaseTemplateWithPriority;
@@ -151,5 +163,6 @@ export type Template =
   | GoalTemplate
   | CopyTemplate
   | RefillTemplate
+  | TotalTemplate
   | LimitTemplate
   | ErrorTemplate;

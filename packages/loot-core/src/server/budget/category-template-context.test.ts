@@ -1057,6 +1057,69 @@ describe('CategoryTemplateContext', () => {
     });
   });
 
+  describe('runTotal', () => {
+    const category: CategoryEntity = {
+      id: 'fun',
+      name: 'Jon Fun Money',
+      group: 'test-group',
+      is_income: false,
+    };
+    const line = (monthly: number, priority = 0): Template => ({
+      type: 'simple',
+      monthly,
+      directive: 'template',
+      priority,
+    });
+    const total = (amount: number, priority = 0): Template => ({
+      type: 'total',
+      amount,
+      label: 'Fun Money',
+      directive: 'template',
+      priority,
+    });
+    const budget = async (templates: Template[]) => {
+      const context = new TestCategoryTemplateContext(
+        templates,
+        category,
+        '2026-10',
+        0,
+        0,
+      );
+      let budgeted = 0;
+      for (const p of context.getPriorities().sort((a, b) => a - b)) {
+        budgeted += await context.runTemplatesForPriority(p, 1000000, 1000000);
+      }
+      return { budgeted, warnings: context.warnings };
+    };
+
+    it('budgets the whole total when nothing else is in the category', async () => {
+      expect((await budget([total(1000)])).budgeted).toBe(100000);
+    });
+
+    it('budgets what the other lines leave, wherever it is written', async () => {
+      // Claude and AppleCare in Jon Fun Money: 1,000 less 43.68.
+      const { budgeted } = await budget([
+        total(1000),
+        line(22.11),
+        line(21.57),
+      ]);
+      expect(budgeted).toBe(100000);
+    });
+
+    it('counts lines at a later priority before it', async () => {
+      const { budgeted } = await budget([total(1000, 0), line(300, 2)]);
+      expect(budgeted).toBe(100000);
+    });
+
+    it('adds nothing and warns when the other lines cost more', async () => {
+      // The bills keep their money; the total is not honoured by underfunding.
+      const { budgeted, warnings } = await budget([total(1000), line(1200)]);
+      expect(budgeted).toBe(120000);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toContain('Jon Fun Money');
+    });
+  });
+
   describe('template priorities', () => {
     it('should handle multiple templates with priorities and insufficient funds', async () => {
       const category: CategoryEntity = {
