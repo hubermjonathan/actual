@@ -315,6 +315,59 @@ export function getNextDate(
   return null;
 }
 
+/**
+ * The first occurrence on or after `from`, from the recurrence alone.
+ *
+ * `getNextDate` cannot answer this once a schedule has advanced: advancing
+ * rewrites the date condition's `start`, and a recurrence has no occurrence
+ * before its start. So a monthly bill paid on 10/01 reports 11/01 for October.
+ * This steps the start back by whole intervals, which keeps the pattern, until
+ * it is no later than `from`.
+ *
+ * A schedule that ends after a number of occurrences is left alone: moving its
+ * start would move its end.
+ */
+export function getOccurrenceOnOrAfter(dateCond, from: string): string | null {
+  const value = dateCond?.value;
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    !value.frequency ||
+    !value.start ||
+    value.endMode === 'after_n_occurrences'
+  ) {
+    return getNextDate(dateCond, monthUtils.parseDate(from));
+  }
+
+  // Monthly and yearly step back a whole number of years, which is always a
+  // whole number of intervals and keeps the start's day: stepping one month
+  // from the 31st would land on the 30th and move every later occurrence.
+  const interval = value.interval || 1;
+  const original = monthUtils.parseDate(value.start);
+  const stepBack = (steps: number): Date => {
+    switch (value.frequency) {
+      case 'yearly':
+      case 'monthly':
+        return d.subMonths(original, 12 * interval * steps);
+      case 'weekly':
+        return d.subDays(original, 7 * interval * steps);
+      default:
+        return d.subDays(original, interval * steps);
+    }
+  };
+
+  let start = original;
+  const target = monthUtils.parseDate(from);
+  for (let steps = 1; steps <= 1000 && start > target; steps++) {
+    start = stepBack(steps);
+  }
+
+  return getNextDate(
+    { ...dateCond, value: { ...value, start: monthUtils.dayFromDate(start) } },
+    target,
+  );
+}
+
 const MAX_ADVANCE_ATTEMPTS = 7;
 
 export function getNextDateAfter(dateCond, afterDate: string): string | null {

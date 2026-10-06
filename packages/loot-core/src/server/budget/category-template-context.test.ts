@@ -975,6 +975,86 @@ describe('CategoryTemplateContext', () => {
       const result = CategoryTemplateContext.runBy(instance);
       expect(result.toBudget).toBe(66500); // (1000 + 2000 - 5) / 3
     });
+
+    describe('when every goal repeats', () => {
+      // The five 750.00 gift goals in `Wants (Reserved)`, in October 2026. At
+      // the end of September they should hold 625.00 + 500.00 + 500.00 +
+      // 187.50 + 187.50 = 2,000.00.
+      const goal = (label: string, month: string): ByTemplate => ({
+        type: 'by',
+        amount: 750,
+        month,
+        annual: true,
+        label,
+        directive: 'template',
+        priority: 0,
+      });
+      const gifts = [
+        goal('Christmas', '2026-11'),
+        goal('Jon Birthday', '2027-01'),
+        goal('Valentines', '2027-01'),
+        goal('Jac Birthday', '2027-06'),
+        goal('Anniversary', '2027-06'),
+      ];
+      const budgetFor = async (fromLastMonth: number) => {
+        const context = new TestCategoryTemplateContext(
+          gifts,
+          instance.category,
+          '2026-10',
+          fromLastMonth,
+          0,
+        );
+        await context.prepareRepeatingGoals();
+        return CategoryTemplateContext.runBy(context);
+      };
+
+      it('budgets the same flat rate every month when on pace', async () => {
+        const result = await budgetFor(200000);
+        expect(result.toBudget).toBe(31250); // 5 x 62.50
+      });
+
+      it('does not count spare money as goal money', async () => {
+        // Upstream subtracted the whole balance, so money held for anything
+        // else made the goals look funded.
+        const result = await budgetFor(300000);
+        expect(result.toBudget).toBe(31250);
+      });
+
+      it('catches up a shortfall in one month', async () => {
+        const result = await budgetFor(190000); // 100.00 short
+        expect(result.toBudget).toBe(41250);
+      });
+
+      it('attributes the budget to each goal by its rate', async () => {
+        const result = await budgetFor(190000);
+        for (const template of gifts) {
+          expect(result.perTemplateNeed.get(template)).toBe(8250); // 62.50 + 20.00
+        }
+      });
+
+      it('keeps upstream math when a goal does not repeat', async () => {
+        const mixed = [gifts[0], { ...gifts[1], annual: undefined }];
+        const context = new TestCategoryTemplateContext(
+          mixed,
+          instance.category,
+          '2026-10',
+          0,
+          0,
+        );
+        await context.prepareRepeatingGoals();
+        const upstream = new TestCategoryTemplateContext(
+          mixed,
+          instance.category,
+          '2026-10',
+          0,
+          0,
+        );
+
+        expect(CategoryTemplateContext.runBy(context).toBudget).toBe(
+          CategoryTemplateContext.runBy(upstream).toBudget,
+        );
+      });
+    });
   });
 
   describe('template priorities', () => {

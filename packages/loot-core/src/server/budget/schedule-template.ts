@@ -1,7 +1,7 @@
 // @ts-strict-ignore
 
 import * as db from '#server/db';
-import { fromDateRepr } from '#server/models';
+import { fromDateRepr, toDateRepr } from '#server/models';
 import { collectFormulasFromActions } from '#server/rules/balanceOfFormula';
 import { getRuleForSchedule } from '#server/schedules/app';
 import { prefetchBalanceOfForTransaction } from '#server/transactions/transaction-rules';
@@ -11,6 +11,7 @@ import {
   extractScheduleConds,
   getDateWithSkippedWeekend,
   getNextDate,
+  getOccurrenceOnOrAfter,
 } from '#shared/schedules';
 import { amountToInteger } from '#shared/util';
 import type { CategoryEntity, TransactionEntity } from '#types/models';
@@ -339,6 +340,55 @@ function getSinkingTotal(t: ScheduleTemplateTarget[]) {
 }
 
 /**
+ * A transaction linked to the schedule, dated in the budget month no more than
+ * a week before the occurrence - the signal `getStatus` uses to call a
+ * schedule paid. The week keeps out last month's bill paid late: Internet's
+ * 9/30 bill linked on 10/02 must not mark the 10/30 bill paid.
+ */
+async function hasLinkedPayment(
+  scheduleId: string,
+  occurrence: string,
+  monthStart: string,
+  monthEnd: string,
+): Promise<boolean> {
+  if (occurrence < monthStart || occurrence > monthEnd) return false;
+  const weekBefore = monthUtils.subDays(occurrence, 7);
+  const from = weekBefore > monthStart ? weekBefore : monthStart;
+  const linked = await db.first<{ id: string }>(
+    `SELECT id FROM v_transactions
+     WHERE schedule = ? AND date >= ? AND date <= ?
+     LIMIT 1`,
+    [scheduleId, toDateRepr(from), toDateRepr(monthEnd)],
+  );
+  return !!linked;
+}
+
+/**
+ * The stored `next_date` is past the occurrence: the schedule advanced, which
+ * only a linked payment does, even one dated last month.
+ */
+async function hasAdvancedPast(
+  scheduleId: string,
+  occurrence: string,
+): Promise<boolean> {
+  // `local_next_date` only holds the answer while its timestamp still matches
+  // `base_next_date_ts`. Once the schedule's date is changed, the base date is
+  // the one that counts. Same rule as `v_schedules.next_date` in
+  // aql/schema/index.ts.
+  const stored = await db.first<{ next_date: number | null }>(
+    `SELECT CASE
+       WHEN local_next_date_ts = base_next_date_ts THEN local_next_date
+       ELSE base_next_date
+     END AS next_date
+     FROM schedules_next_date WHERE schedule_id = ?`,
+    [scheduleId],
+  );
+  return (
+    stored?.next_date != null && fromDateRepr(stored.next_date) > occurrence
+  );
+}
+
+/**
  * Build the reservation claims a category's schedule templates imply.
  *
  * This uses `createScheduleList` and `getMonthlyBaseContribution`. The rate a
@@ -365,48 +415,76 @@ export async function getScheduleReservationClaims(
     currency,
   );
 
-  // `createScheduleList` finds the occurrence for the budget month. That is
-  // correct for budgeting, because September must still pay September's bill.
-  // A reservation answers a different question: what does this balance still
-  // owe? It therefore reads the schedule's stored `next_date`, which moves
-  // forward after you pay a bill. Without this, a claim you paid earlier in the
-  // month keeps a reservation against a balance it has already taken.
+  // A claim needs two answers, and only one of them is about payment.
+  //
+  // - **When is the cost due?** From the recurrence rule, read as a calendar.
+  //   The schedule's stored `next_date` moves only when a transaction links to
+  //   it, so a failed link used to freeze the claim: it reserved the whole cost
+  //   in every later month and never cycled. The calendar cannot freeze.
+  // - **Was this occurrence already paid?** From a payment signal. A claim paid
+  //   earlier in the month must stop reserving against a balance the bill has
+  //   already taken, and read as spent rather than as 0.00.
+  //
   // createScheduleList already drops completed schedules.
+  const monthStart = monthUtils.firstDayOfMonth(current_month);
+  const monthEnd = monthUtils.lastDayOfMonth(current_month);
   const claims: ReservationClaim[] = [];
   for (const c of t) {
-    // `local_next_date` only holds the answer while its timestamp still
-    // matches `base_next_date_ts`. Once the schedule's date is changed, the
-    // base date is the one that counts. Same rule as `v_schedules.next_date`
-    // in aql/schema/index.ts.
-    const stored = await db.first<{ next_date: number | null }>(
-      `SELECT CASE
-         WHEN local_next_date_ts = base_next_date_ts THEN local_next_date
-         ELSE base_next_date
-       END AS next_date
-       FROM schedules_next_date WHERE schedule_id = ?`,
-      [c.scheduleId],
+    const rule = await getRuleForSchedule(c.scheduleId);
+    const { date: dateConditions } = extractScheduleConds(
+      rule.serialize().conditions,
     );
-    const nextDate =
-      stored?.next_date != null
-        ? fromDateRepr(stored.next_date)
-        : c.next_date_string;
+    // The occurrence the rule gives for the month. Its `start` never runs
+    // behind its stored date, so a frozen schedule still lands here.
+    const ruleOccurrence =
+      getNextDate(dateConditions, monthUtils.parseDate(monthStart)) ??
+      c.next_date_string;
+    // Advancing a schedule rewrites its rule's `start` to the next
+    // occurrence, which erases the one just paid: Rent paid on 10/01 has a
+    // rule that starts 11/01. Recover it from the calendar, but only trust it
+    // with a linked payment - a schedule that simply starts later has the
+    // same shape and nothing in the month.
+    const earlier = getOccurrenceOnOrAfter(dateConditions, monthStart);
+    const paidEarlier =
+      !!earlier &&
+      !!ruleOccurrence &&
+      earlier < ruleOccurrence &&
+      (await hasLinkedPayment(c.scheduleId, earlier, monthStart, monthEnd));
+
+    let occurrence: string | null;
+    let paid: boolean;
+    let nextDate: string;
+    if (paidEarlier) {
+      occurrence = earlier;
+      paid = true;
+      nextDate = ruleOccurrence;
+    } else {
+      occurrence = ruleOccurrence;
+      paid =
+        !!occurrence &&
+        ((await hasLinkedPayment(
+          c.scheduleId,
+          occurrence,
+          monthStart,
+          monthEnd,
+        )) ||
+          (await hasAdvancedPast(c.scheduleId, occurrence)));
+      nextDate =
+        paid && occurrence
+          ? (getOccurrenceOnOrAfter(
+              dateConditions,
+              monthUtils.addDays(occurrence, 1),
+            ) ?? occurrence)
+          : occurrence;
+    }
     const monthsRemaining = monthUtils.differenceInCalendarMonths(
       nextDate,
       current_month,
     );
-
-    // Whether this month's bill has already been paid.
-    //
-    // `next_date_string` is the occurrence the recurrence rule gives for the
-    // budget month, and does not move. `nextDate` is the schedule's stored next
-    // date, which advances past an occurrence once it is paid. When the
-    // occurrence lands in this month and the stored date has gone past it, the
-    // reservation was spent on the bill it was for.
-    const occurrence = c.next_date_string;
     const settledThisMonth =
+      paid &&
       !!occurrence &&
-      monthUtils.getMonth(occurrence) === monthUtils.getMonth(current_month) &&
-      nextDate > occurrence;
+      monthUtils.getMonth(occurrence) === monthUtils.getMonth(current_month);
 
     claims.push({
       name: c.name,

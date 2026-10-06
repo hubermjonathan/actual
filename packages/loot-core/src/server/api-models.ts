@@ -306,7 +306,7 @@ export type APICategoryReservationsEntity = Omit<
   CategoryReservationsResult,
   'claims'
 > & {
-  /** `reserved + allowance`. The part of the balance that has a job. */
+  /** Equal to `reserved`: the part of the balance owed to future costs. */
   committed: number;
   claims: APIReservationClaimEntity[];
 };
@@ -318,7 +318,7 @@ export const reservationsModel = {
   }: CategoryReservationsResult): APICategoryReservationsEntity {
     return {
       ...rest,
-      committed: rest.reserved + rest.allowance,
+      committed: rest.reserved,
       claims: claims.map(claim => ({ ...claim, fixed: !!claim.fixed })),
     };
   },

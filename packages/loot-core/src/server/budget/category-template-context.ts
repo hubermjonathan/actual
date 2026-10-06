@@ -27,7 +27,9 @@ import {
   getSheetValue,
   isTrackingBudget,
 } from './actions';
-import { runSchedule } from './schedule-template';
+import { accruedToDate, getByReservationClaims } from './reservations';
+import type { ReservationClaim } from './reservations';
+import { getScheduleReservationClaims, runSchedule } from './schedule-template';
 import { getActiveSchedules } from './statements';
 
 export class CategoryTemplateContext {
@@ -93,7 +95,7 @@ export class CategoryTemplateContext {
       currencyPref.data.length > 0 ? currencyPref.data[0].value : '';
 
     // call the private constructor
-    return new CategoryTemplateContext(
+    const context = new CategoryTemplateContext(
       templates,
       category,
       month,
@@ -105,6 +107,8 @@ export class CategoryTemplateContext {
         : false,
       skipAvailableClamp,
     );
+    await context.prepareRepeatingGoals();
+    return context;
   }
 
   isGoalOnly(): boolean {
@@ -411,6 +415,11 @@ export class CategoryTemplateContext {
   private limitHold = false;
   readonly previouslyBudgeted: number = 0;
   private currency: Currency;
+  // Set when every `by` template repeats. See prepareRepeatingGoals.
+  private repeatingGoals: {
+    claims: ReservationClaim[];
+    shortfall: number;
+  } | null = null;
 
   protected constructor(
     templates: Template[],
@@ -451,6 +460,72 @@ export class CategoryTemplateContext {
     this.checkLimit(templates);
     this.checkSpend();
     this.checkGoal();
+  }
+
+  /**
+   * Budget repeating `by` goals the way the reservations engine holds them.
+   *
+   * A goal such as `#template 750 by 2026-11 repeat every year` is a claim:
+   * the reservations engine expects it to collect a flat `750 / 12` every
+   * month. `runBy` instead pools every `by` line, subtracts the **whole**
+   * category balance and spreads the rest to the nearest date. In a category
+   * that also holds bills, that balance is mostly the bills' money, so the
+   * goals were under-budgeted every month and the category read as behind -
+   * 45.24 in `Wants (Reserved)` for October 2026.
+   *
+   * So when every `by` line repeats, each gets its monthly rate, plus whatever
+   * the goals are short at the start of the month. Short means: what the goals
+   * should hold now, less the balance left after the schedule claims take
+   * theirs, as the reservations engine counted them at the end of last month.
+   * On pace that is nothing, and the goals cost the same every month.
+   *
+   * A one-off `by` line has no rate to collect at, so a category with one keeps
+   * upstream's calculation.
+   */
+  async prepareRepeatingGoals() {
+    const byTemplates = this.templates.filter(
+      (t): t is ByTemplate => t.type === 'by',
+    );
+    if (
+      byTemplates.length === 0 ||
+      !byTemplates.every(t => t.annual || t.repeat)
+    ) {
+      return;
+    }
+
+    const claims = getByReservationClaims(
+      byTemplates,
+      this.month,
+      this.category.name,
+      this.currency.decimalPlaces,
+    );
+    const neededAtStart = Math.round(
+      claims.reduce(
+        (sum, c) => sum + Math.max(0, accruedToDate(c) - c.monthlyRate),
+        0,
+      ),
+    );
+
+    const scheduleTemplates = this.templates.filter(
+      (t): t is ScheduleTemplate => t.type === 'schedule',
+    );
+    const scheduleClaims = scheduleTemplates.length
+      ? await getScheduleReservationClaims(
+          scheduleTemplates,
+          monthUtils.subMonths(this.month, 1),
+          this.category,
+          this.currency,
+        )
+      : [];
+    const heldForSchedules = Math.round(
+      scheduleClaims.reduce((sum, c) => sum + accruedToDate(c), 0),
+    );
+
+    const available = Math.max(0, this.fromLastMonth - heldForSchedules);
+    this.repeatingGoals = {
+      claims,
+      shortfall: Math.max(0, neededAtStart - available),
+    };
   }
 
   private runGoal() {
@@ -912,6 +987,24 @@ export class CategoryTemplateContext {
     const byTemplates: ByTemplate[] = templateContext.templates.filter(
       t => t.type === 'by',
     );
+
+    const goals = templateContext.repeatingGoals;
+    if (goals) {
+      const totalRate = goals.claims.reduce((sum, c) => sum + c.monthlyRate, 0);
+      const perTemplateNeed = new Map<ByTemplate, number>();
+      byTemplates.forEach((template, i) => {
+        const rate = goals.claims[i]?.monthlyRate ?? 0;
+        perTemplateNeed.set(
+          template,
+          rate + (totalRate > 0 ? (goals.shortfall * rate) / totalRate : 0),
+        );
+      });
+      return {
+        toBudget: Math.round(totalRate + goals.shortfall),
+        perTemplateNeed,
+      };
+    }
+
     const savedInfo = [];
     let totalNeeded = 0;
     let workingShortNumMonths;

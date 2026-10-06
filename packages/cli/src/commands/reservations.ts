@@ -16,7 +16,6 @@ function summaryRows(reservations: Reservations) {
     categoryName: r.categoryName,
     balance: r.balance,
     reserved: r.reserved,
-    allowance: r.allowance,
     allowanceTotal: r.allowanceTotal,
     committed: r.committed,
     spare: r.spare,
