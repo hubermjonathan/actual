@@ -52,7 +52,7 @@ export type SettledClaim = ReservationClaim & {
    * What this claim holds. Always equals `accrued`.
    *
    * A reservation is a promise about a bill that has not arrived. It is not
-   * reduced because the month's allowance was overspent - that would move the
+   * reduced because the category was overspent - that would move the
    * problem somewhere nobody is looking. When the balance cannot cover
    * everything, the category reports it once, in `spare`.
    */
@@ -62,12 +62,6 @@ export type SettledClaim = ReservationClaim & {
   onTrack: boolean;
 };
 
-/** The amount an allowance keeps for this month, for example `#template 1000 [groceries]`. */
-export type Allowance = {
-  label: string;
-  amount: number;
-};
-
 export type ReservationStatus = 'behind' | 'onPace' | 'ahead' | 'funded';
 
 export type CategoryReservations = {
@@ -75,32 +69,17 @@ export type CategoryReservations = {
   /** Portion of the balance owed to future costs. Not spendable now. */
   reserved: number;
   /**
-   * Allowance money that is still in the balance. You can spend it, because
-   * that is what an allowance is for. It is already promised, so it is not
-   * free money.
+   * `balance - reserved`. The money no future cost needs, which is the money
+   * you can spend.
    *
-   * This falls as the month's allowance is spent. It is what is **left**, not
-   * what the month started with. For that, read `allowanceTotal`.
-   */
-  allowance: number;
-  /**
-   * What the allowance templates ask for in a month, before any of it is spent.
-   * The sum of `allowances[].amount`.
+   * There is no allowance part. A `#template 1000 [groceries]` line only
+   * budgets the category; once every allowance had its own category, carving
+   * it out of the balance just restated the balance, and in a category that
+   * also holds claims it hid money a claim had released.
    *
-   * `allowance` alone cannot tell a fully spent allowance from a category that
-   * has none, and cannot say how much of the month's budget is gone. Both
-   * numbers are needed: this one is the size of the allowance, `allowance` is
-   * what remains of it.
-   */
-  allowanceTotal: number;
-  /**
-   * `balance - reserved - allowance`. More than the future costs and the
-   * allowances need.
-   *
-   * **Negative means overspent.** Claims keep their full accrual and the
-   * allowance takes what is left, so a month spent past its allowance shows the
-   * deficit here rather than quietly shrinking a reservation. It is a number the
-   * user can see and choose how to cover.
+   * **Negative means overspent.** Claims keep their full accrual, so a month
+   * spent past what is free shows the deficit here rather than quietly shrinking
+   * a reservation.
    */
   spare: number;
   /** What should be held across all claims, ignoring whether it is there. */
@@ -115,7 +94,6 @@ export type CategoryReservations = {
   /** `null` when the category has nothing to measure against. */
   status: ReservationStatus | null;
   claims: SettledClaim[];
-  allowances: Allowance[];
 };
 
 /**
@@ -145,13 +123,10 @@ export function accruedToDate({
 /**
  * Settle a category's balance against its claims.
  *
- * **Claims hold their full accrual, whatever the balance.** The allowance takes
- * what is left of the balance, and anything still missing lands in `spare` as a
- * negative.
+ * **Claims hold their full accrual, whatever the balance.** Everything else is
+ * `spare`, and anything missing lands there as a negative.
  *
- * That order is the point. An allowance is this month's money and is meant to be
- * spent; a reservation is a promise about a bill that has not arrived. Capping
- * reservations at the balance meant an overspent allowance quietly reduced them,
+ * Capping reservations at the balance meant overspending quietly reduced them,
  * in reverse due-date order, with nothing said - 22.42 of extra dinners became a
  * hole in a birthday fund. Now the category reports the deficit once, in one
  * place, and the user decides where to cover it from.
@@ -159,7 +134,6 @@ export function accruedToDate({
 export function settleReservations(
   balance: number,
   claims: ReservationClaim[],
-  allowances: Allowance[] = [],
 ): CategoryReservations {
   const ordered = [...claims].sort((a, b) => {
     const byDate = a.nextDate.localeCompare(b.nextDate);
@@ -189,26 +163,19 @@ export function settleReservations(
     onTrack: true,
   }));
 
-  // Allowances get the money that the future costs do not need. As you spend
-  // the month's allowance, the balance falls and this value falls with it. It
-  // shows what is left of the allowance, not the amount it started at.
-  const allowanceTotal = allowances.reduce((sum, a) => sum + a.amount, 0);
-  const allowance = Math.min(
-    Math.max(0, balance - reserved),
-    Math.max(0, allowanceTotal),
-  );
-  // `balance = reserved + allowance + spare` always holds. When the balance
-  // cannot cover the claims and the allowance, this goes negative.
-  const spare = balance - reserved - allowance;
+  // `balance = reserved + spare` always holds.
+  const spare = balance - reserved;
   const shortfall = Math.max(0, -spare);
 
-  // A category with no claims and no allowances has nothing to be ahead of.
+  // Status describes the claims and nothing else. A category with none has
+  // nothing to be on pace for, so it has no status, like one with no
+  // templates.
   let status: ReservationStatus | null;
-  if (settled.length === 0 && allowances.length === 0) {
+  if (settled.length === 0) {
     status = null;
   } else if (shortfall > 0) {
     status = 'behind';
-  } else if (target > 0 && balance - allowance >= target) {
+  } else if (balance >= target) {
     status = 'funded';
   } else if (spare > 0) {
     status = 'ahead';
@@ -219,15 +186,12 @@ export function settleReservations(
   return {
     balance,
     reserved,
-    allowance,
-    allowanceTotal: Math.round(allowanceTotal),
     spare,
     accrued,
     shortfall,
     target,
     status,
     claims: settled,
-    allowances,
   };
 }
 

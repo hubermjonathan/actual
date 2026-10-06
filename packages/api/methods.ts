@@ -148,7 +148,7 @@ export function getBudgetMonth(month: string) {
 
 /**
  * How each category's balance divides up in `month`: what is reserved for
- * future costs, what is this month's allowance, and what is spare.
+ * future costs and what is spare.
  *
  * Every amount is integer cents. The figures are derived on each call and
  * never stored, so they always match the current balance.

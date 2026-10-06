@@ -61,9 +61,8 @@ export type SimpleTemplate = {
   type: 'simple';
   monthly?: number;
   /**
-   * What this amount is for, for example `#template 1000 [groceries]`. This is
-   * a note only. It names an allowance. It does not change the budgeted
-   * amount.
+   * What this amount is for, for example `#template 1000 [groceries]`. A name
+   * only: it does not change the budgeted amount, and nothing reads it.
    */
   label?: string;
   limit?: {

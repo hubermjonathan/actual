@@ -368,7 +368,7 @@ describe('API CRUD operations', () => {
   });
 
   // apis: getReservations
-  test('Reservations: report a category allowance as committed', async () => {
+  test('Reservations: a labelled amount budgets the category and claims nothing', async () => {
     const month = '2023-10';
     global.currentMonth = month;
 
@@ -378,8 +378,8 @@ describe('API CRUD operations', () => {
       group_id: groupId,
     });
 
-    // An allowance is money to spend this month. It is committed, not spare,
-    // even when nothing is reserved for a future cost.
+    // `[test-allowance]` is a name only. The line budgets the category; with no
+    // claim, every cent of the balance is spare and there is no status.
     await api.updateNote(categoryId, '#template 100 [test-allowance]');
     // Reservations read the templates stored on the category, which the app
     // refreshes when a note is saved. Nothing does that for a note written
@@ -394,12 +394,12 @@ describe('API CRUD operations', () => {
       categoryName: 'test-reservations',
       balance: 10000,
       reserved: 0,
-      allowance: 10000,
-      committed: 10000,
-      spare: 0,
+      committed: 0,
+      spare: 10000,
+      status: null,
       claims: [],
-      allowances: [{ label: 'test-allowance', amount: 10000 }],
     });
+    expect(category).not.toHaveProperty('allowances');
   });
 
   // apis: getReservations

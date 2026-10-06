@@ -785,15 +785,29 @@ describe('getScheduleReservationClaims', () => {
     } as const,
   ];
 
-  // db.first serves two queries here: the schedule row that createScheduleList
-  // reads, and the stored next date that the claim reads.
-  function mockSchedule(storedNextDate: number | null) {
-    vi.mocked(db.first).mockImplementation(async (query: string) =>
-      query.includes('schedules_next_date')
-        ? storedNextDate == null
-          ? undefined
-          : { next_date: storedNextDate }
-        : { id: 1, completed: 0 },
+  // db.first serves three queries here: the schedule row that
+  // createScheduleList reads, the stored next date, and the transactions
+  // linked to the schedule. `linkedDate` is the date of one linked
+  // transaction, or null for none.
+  function mockSchedule(
+    storedNextDate: number | null,
+    linkedDate: number | null = null,
+  ) {
+    vi.mocked(db.first).mockImplementation(
+      async (query: string, params?: unknown[]) => {
+        if (query.includes('schedules_next_date')) {
+          return storedNextDate == null
+            ? undefined
+            : { next_date: storedNextDate };
+        }
+        if (query.includes('v_transactions')) {
+          const [, from, to] = params as number[];
+          return linkedDate != null && linkedDate >= from && linkedDate <= to
+            ? { id: 'tx-1' }
+            : undefined;
+        }
+        return { id: 1, completed: 0 };
+      },
     );
     vi.mocked(getRuleForSchedule).mockResolvedValue(
       makeRule({ start: '2024-08-01', amount: -10000, frequency: 'monthly' }),
@@ -873,6 +887,83 @@ describe('getScheduleReservationClaims', () => {
     expect(claims).toHaveLength(1);
     expect(claims[0].nextDate).toBe('2024-08-01');
     expect(claims[0].monthsRemaining).toBe(0);
+    expect(claims[0].settledThisMonth).toBe(false);
+  });
+
+  it('keeps cycling on the calendar when the stored date froze in the past', async () => {
+    // The regression this exists for: Bentley Insurance was charged on 9/25,
+    // nothing linked, and its stored date sat at 9/25 for good. The claim then
+    // reserved the whole bill in every later month. The calendar says the
+    // November bill is due 11/25, so November reserves November's bill and
+    // nothing more.
+    mockSchedule(20240925);
+    vi.mocked(getRuleForSchedule).mockResolvedValue(
+      makeRule({ start: '2024-09-25', amount: -4255, frequency: 'monthly' }),
+    );
+
+    const claims = await getScheduleReservationClaims(
+      template_lines,
+      '2024-11-01',
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(claims[0].nextDate).toBe('2024-11-25');
+    expect(claims[0].monthsRemaining).toBe(0);
+    expect(claims[0].settledThisMonth).toBe(false);
+  });
+
+  it('reads as spent when a linked payment is in the month, whatever the rule start says', async () => {
+    // The `(spent)` defect: advancing a schedule rewrites its rule's start, so
+    // the rule alone has no August occurrence any more. Rent paid on 8/1 then
+    // read 0.00 instead of spent.
+    mockSchedule(20240801, 20240801);
+    vi.mocked(getRuleForSchedule).mockResolvedValue(
+      makeRule({ start: '2024-09-01', amount: -10000, frequency: 'monthly' }),
+    );
+
+    const claims = await getScheduleReservationClaims(
+      template_lines,
+      '2024-08-01',
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(claims[0].settledThisMonth).toBe(true);
+    expect(claims[0].nextDate).toBe('2024-09-01');
+  });
+
+  it('reads as spent when the schedule advanced with no link in the month', async () => {
+    // Paid on the last day of the previous month: the link is dated July, but
+    // the schedule moved past August's occurrence.
+    mockSchedule(20240901, 20240731);
+
+    const claims = await getScheduleReservationClaims(
+      template_lines,
+      '2024-08-01',
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(claims[0].settledThisMonth).toBe(true);
+  });
+
+  it("does not let last month's late payment mark this month's bill paid", async () => {
+    // Internet's bill for 9/30 posted and linked on 10/02. October's own bill
+    // is due 10/31 and is not paid.
+    mockSchedule(20241030, 20241002);
+    vi.mocked(getRuleForSchedule).mockResolvedValue(
+      makeRule({ start: '2024-09-30', amount: -4000, frequency: 'monthly' }),
+    );
+
+    const claims = await getScheduleReservationClaims(
+      template_lines,
+      '2024-10-01',
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(claims[0].nextDate).toBe('2024-10-30');
     expect(claims[0].settledThisMonth).toBe(false);
   });
 

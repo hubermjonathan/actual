@@ -182,114 +182,70 @@ describe('a claim settled during the month', () => {
   });
 });
 
-describe('allowances and status', () => {
-  const groceries = [{ label: 'groceries', amount: 100000 }];
-
-  it('keeps an allowance out of spare', () => {
-    // Nothing is owed to a future cost, but the balance is this month's
-    // grocery money. You can spend it, and it is not free money.
-    const r = settleReservations(
-      118500,
-      [],
-      [
-        { label: 'groceries', amount: 100000 },
-        { label: 'healthcare', amount: 15000 },
-        { label: 'dog food', amount: 3500 },
-      ],
-    );
+describe('spare and status', () => {
+  it('has no status for a category with no claims', () => {
+    // `#template 1000 [groceries]` only budgets the category. Its balance is
+    // all spare, and there is no claim to be on pace for.
+    const r = settleReservations(118500, []);
 
     expect(r.reserved).toBe(0);
-    expect(r.allowance).toBe(118500);
+    expect(r.spare).toBe(118500);
+    expect(r.status).toBeNull();
+    expect(r).not.toHaveProperty('allowanceTotal');
+    expect(r).not.toHaveProperty('allowances');
+  });
+
+  it('shows money a claim released in a mixed category', () => {
+    // The defect behind retiring allowances: a category holding claims and a
+    // monthly amount pinned spare to 0 while the monthly amount had room, so
+    // money a claim no longer needed was invisible.
+    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
+    const r = settleReservations(150000, claims);
+
+    expect(r.reserved).toBe(80000);
+    expect(r.spare).toBe(70000);
+    expect(r.status).toBe('funded'); // 1,500.00 covers the whole 1,200.00
+  });
+
+  it('is ahead when it holds more than the claims need so far', () => {
+    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
+    const r = settleReservations(100000, claims);
+
+    expect(r.spare).toBe(20000);
+    expect(r.status).toBe('ahead');
+  });
+
+  it('is on pace when the balance holds exactly what the claims need', () => {
+    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')];
+    const r = settleReservations(80000, claims);
+
     expect(r.spare).toBe(0);
     expect(r.status).toBe('onPace');
   });
 
-  it('shrinks the allowance figure as it is spent', () => {
-    const r = settleReservations(40000, [], groceries);
-    expect(r.allowance).toBe(40000);
-    expect(r.spare).toBe(0);
-  });
-
-  it('reports the size of the allowance separately from what is left', () => {
-    // `allowance` falls as the month is spent. `allowanceTotal` does not, so a
-    // caller can say "600.00 of 1,000.00 left" instead of showing one number
-    // and leaving the reader to guess which it is.
-    const r = settleReservations(60000, [], groceries);
-
-    expect(r.allowanceTotal).toBe(100000);
-    expect(r.allowance).toBe(60000);
-  });
-
-  it('keeps the allowance total when the allowance is fully spent', () => {
-    // The case that hid Eating Out and Travel from the breakdown: spent to
-    // zero is not the same as absent, and only `allowanceTotal` can tell them
-    // apart.
-    const r = settleReservations(0, [], groceries);
-
-    expect(r.allowanceTotal).toBe(100000);
-    expect(r.allowance).toBe(0);
-  });
-
-  it('reports an allowance total of zero when there are no allowances', () => {
-    const r = settleReservations(50000, [], []);
-
-    expect(r.allowanceTotal).toBe(0);
-    expect(r.allowance).toBe(0);
-  });
-
-  it('reports the full allowance total even when claims take the balance', () => {
-    // Claims hold their accrual first, so the allowance can be squeezed to
-    // nothing while the month still asks for the whole 1,000.00.
-    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
-    const r = settleReservations(80000, claims, groceries);
-
-    expect(r.reserved).toBe(80000);
-    expect(r.allowance).toBe(0);
-    expect(r.allowanceTotal).toBe(100000);
-  });
-
-  it('reports the excess once allowances are covered', () => {
-    const r = settleReservations(150000, [], groceries);
-    expect(r.allowance).toBe(100000);
-    expect(r.spare).toBe(50000);
-    expect(r.status).toBe('ahead');
-  });
-
-  it('holds claims whole before the allowance takes what is left', () => {
-    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
-    const r = settleReservations(150000, claims, groceries);
-
-    expect(r.reserved).toBe(80000);
-    expect(r.allowance).toBe(70000); // what is left, short of the 1,000.00
-    expect(r.spare).toBe(0);
-  });
-
-  it('does not reduce a reservation when the allowance is overspent', () => {
-    // The case this behaviour exists for. 650.00 of allowance, 672.42 spent,
-    // and 2,588.01 of claims. The old engine covered claims from whatever the
-    // balance had left and quietly cut the last one by 22.42. Now the claims
-    // are whole and the 22.42 is visible.
+  it('does not reduce a reservation when the month is overspent', () => {
+    // 672.42 spent against 650.00, with 812.50 of claims. The old engine
+    // covered claims from whatever the balance had left and quietly cut the
+    // last one. The claims stay whole and the deficit is visible.
     const claims = [
       claim('Christmas', 75000, 12, 2, '2026-11-01'), // needs 625.00
       claim('Jac Birthday', 75000, 12, 9, '2027-06-01'), // needs 187.50
     ];
-    const allowance = [{ label: 'eating out', amount: 65000 }];
-    const r = settleReservations(78258, claims, allowance); // 22.42 overspent
+    const r = settleReservations(78258, claims);
 
     expect(r.reserved).toBe(81250); // 625.00 + 187.50, both whole
     expect(r.claims.every(c => c.reserved === c.accrued)).toBe(true);
-    expect(r.allowance).toBe(0);
     expect(r.spare).toBe(-2992);
     expect(r.status).toBe('behind');
   });
 
   it('reports behind when the balance cannot cover the claims', () => {
     const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')];
-    const r = settleReservations(50000, claims, groceries);
+    const r = settleReservations(50000, claims);
 
     expect(r.status).toBe('behind');
     expect(r.shortfall).toBe(30000);
-    expect(r.allowance).toBe(0);
+    expect(r.spare).toBe(-30000);
   });
 
   it('reports funded when every future cost is fully covered', () => {

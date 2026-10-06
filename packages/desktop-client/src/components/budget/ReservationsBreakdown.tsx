@@ -13,13 +13,12 @@ import { useFormat } from '#hooks/useFormat';
 /**
  * Whether there is a breakdown worth showing.
  *
- * Gate on whether the category *has* claims or allowances, not on whether their
- * current amounts are above zero. A fully spent allowance and a claim that
- * accrues nothing this month are both worth seeing, and hiding them makes
- * "spent it all" look identical to "there is none".
+ * Gate on whether the category *has* claims, not on whether they hold anything
+ * now. A claim that accrues nothing this month is still worth seeing, and
+ * hiding it makes "paid" look identical to "there is none".
  */
 export function hasReservationDetail(r: CategoryReservationsResult | null) {
-  return !!r && (r.claims.length > 0 || r.allowances.length > 0);
+  return !!r && r.claims.length > 0;
 }
 
 export type ReservationsBreakdownProps = {
@@ -30,9 +29,8 @@ export type ReservationsBreakdownProps = {
 /**
  * How a category balance divides up.
  *
- * `Reserved` is owed to a future cost. Do not spend it yet. `Allowance` is for
- * this month. You can spend it, because that is its purpose, but it is already
- * promised. The amount that is left is spare.
+ * `Reserved` is owed to a future cost. Do not spend it yet. The amount that is
+ * left is spare.
  */
 export function ReservationsBreakdown({
   reservations,
@@ -98,35 +96,6 @@ export function ReservationsBreakdown({
                 />
               </View>
             ))}
-        </>
-      )}
-      {reservations.allowances.length > 0 && (
-        <>
-          {/*
-            The size of the month's allowance, which is what the lines beneath
-            add up to. It used to read `reservations.allowance` - the remainder
-            after claims - while the lines beneath read their template totals,
-            so the header and its own children disagreed and both were labelled
-            "Allowance".
-
-            How much of it is left is deliberately not shown here. For a
-            category with no claims it is just the balance again, which the row
-            already gives you.
-          */}
-          <AlignedText
-            left={t('Allowance')}
-            right={format(reservations.allowanceTotal, 'financial')}
-            rightStyle={styles.tnum}
-          />
-          {reservations.allowances.map(a => (
-            <View key={a.label} style={{ paddingLeft: 12, opacity: 0.75 }}>
-              <AlignedText
-                left={a.label}
-                right={format(a.amount, 'financial')}
-                rightStyle={styles.tnum}
-              />
-            </View>
-          ))}
         </>
       )}
       <View

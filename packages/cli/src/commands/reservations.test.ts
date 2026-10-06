@@ -22,10 +22,8 @@ const category = {
   categoryName: 'Needs',
   balance: 564579,
   reserved: 446079,
-  allowance: 118500,
-  allowanceTotal: 118500,
-  committed: 564579,
-  spare: 0,
+  committed: 446079,
+  spare: 118500,
   accrued: 446079,
   shortfall: 0,
   target: 1053000,
@@ -45,7 +43,6 @@ const category = {
       fixed: true,
     },
   ],
-  allowances: [{ label: 'groceries', amount: 100000 }],
 };
 
 function createProgram(format = 'json'): Command {
@@ -104,10 +101,8 @@ describe('reservations commands', () => {
             categoryName: 'Needs',
             balance: 564579,
             reserved: 446079,
-            allowance: 118500,
-            allowanceTotal: 118500,
-            committed: 564579,
-            spare: 0,
+            committed: 446079,
+            spare: 118500,
             status: 'onPace',
           },
         ],

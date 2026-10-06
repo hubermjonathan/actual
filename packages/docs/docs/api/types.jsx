@@ -240,22 +240,11 @@ export const objects = {
       description: <span>Owed to a future cost. Should not be spent yet.</span>,
     },
     {
-      name: 'allowance',
-      type: types.amount,
-      description: (
-        <span>
-          The allowance left for this month. You can spend it. That is its
-          purpose.
-        </span>
-      ),
-    },
-    {
       name: 'committed',
       type: types.amount,
       description: (
         <span>
-          <code>reserved + allowance</code>. This is the part of the balance
-          that already has a job.
+          Equal to <code>reserved</code>.
         </span>
       ),
     },
@@ -264,8 +253,8 @@ export const objects = {
       type: types.amount,
       description: (
         <span>
-          <code>balance - committed</code>. Genuinely nothing claiming it. Can
-          be negative when the category is overspent.
+          <code>balance - reserved</code>. Nothing claims it. Can be negative
+          when the category is overspent.
         </span>
       ),
     },
@@ -297,13 +286,12 @@ export const objects = {
       description: (
         <span>
           One of <code>behind</code>, <code>onPace</code>, <code>ahead</code>,{' '}
-          <code>funded</code>, or <code>null</code> when the category has
-          nothing to measure.
+          <code>funded</code>, or <code>null</code> when the category has no
+          claims.
         </span>
       ),
     },
     { name: 'claims', type: 'ReservationClaim[]' },
-    { name: 'allowances', type: 'Allowance[]' },
   ],
 
   reservationClaim: [
@@ -346,20 +334,6 @@ export const objects = {
         </span>
       ),
     },
-  ],
-
-  allowance: [
-    {
-      name: 'label',
-      type: 'string',
-      description: (
-        <span>
-          From <code>#template 1000 [groceries]</code>, or the category name
-          when the template carries no label.
-        </span>
-      ),
-    },
-    { name: 'amount', type: types.amount },
   ],
 
   schedule: [

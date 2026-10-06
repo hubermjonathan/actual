@@ -9,36 +9,22 @@ function reservations(
     categoryName: 'Needs',
     balance: 564579,
     reserved: 446079,
-    allowance: 118500,
-    allowanceTotal: 118500,
-    spare: 0,
+    spare: 118500,
     accrued: 446079,
     shortfall: 0,
     target: 1053000,
     status: 'onPace',
     claims: [],
-    allowances: [],
     ...overrides,
   };
 }
 
 describe('reservationsModel.toExternal', () => {
-  it('publishes committed as reserved plus allowance', () => {
+  it('publishes committed as what the claims hold', () => {
     const external = reservationsModel.toExternal(reservations());
 
-    expect(external.committed).toBe(446079 + 118500);
+    expect(external.committed).toBe(446079);
     expect(external.committed).toBe(external.balance - external.spare);
-  });
-
-  it('publishes the allowance total alongside what is left of it', () => {
-    // A caller needs both: the size of the month's allowance, and how much of
-    // it survives. `allowance` alone cannot tell a spent allowance from none.
-    const external = reservationsModel.toExternal(
-      reservations({ allowance: 40000, allowanceTotal: 118500 }),
-    );
-
-    expect(external.allowanceTotal).toBe(118500);
-    expect(external.allowance).toBe(40000);
   });
 
   it('reports a claim without the [fixed] flag as not fixed', () => {

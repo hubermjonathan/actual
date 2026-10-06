@@ -14,8 +14,6 @@ const AMOUNT_FIELDS = new Set([
   'carryover',
   // reservations
   'reserved',
-  'allowance',
-  'allowanceTotal',
   'committed',
   'spare',
   'accrued',
