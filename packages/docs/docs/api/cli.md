@@ -159,12 +159,12 @@ actual budgets reset-hold --month 2026-03
 
 ### Reservations
 
-Divides each category balance into three parts: the money reserved for future
-costs, this month's allowance, and the money that is spare. See
+Divides each category balance into two parts: the money reserved for future
+costs, and the money that is spare. See
 [Reservations](../experimental/reservations.md) for the meaning of each part.
 
 ```bash
-# Reserved, allowance and spare per category
+# Reserved and spare per category
 actual reservations list 2026-09
 
 # Just one category

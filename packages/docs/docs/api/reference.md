@@ -11,7 +11,6 @@ import APIList from './APIList';
 "getReservations",
 "Category reservations",
 "Reservation claim",
-"Allowance",
 "setBudgetAmount",
 "setBudgetCarryover",
 "holdBudgetForNextMonth",
@@ -155,11 +154,11 @@ These are types.
 
 <Method name="getReservations" args={[{ name: 'month', type: 'month' }, { name: 'options', type: '{ categoryId?: id }' }]} returns="Promise<CategoryReservations[]>" />
 
-Divides each category balance into three parts: the money **reserved** for known future costs, this month's **allowance**, and the money that is **spare**. Pass `categoryId` to get one category only.
+Divides each category balance into two parts: the money **reserved** for known future costs, and the money that is **spare**. Pass `categoryId` to get one category only.
 
 Actual calculates these values on each call and does not store them, so they always agree with the current balance. It calculates them from the [budget templates](../experimental/goal-templates.md) on each category. See [Reservations](../experimental/reservations.md) for the meaning of each part.
 
-The result does not include income categories or hidden categories. It does include a category that has no templates. That category holds all of its money in `spare` and has a `status` of `null`, so you can show every row from one result.
+The result does not include income categories or hidden categories. It does include a category that has no claims. That category holds all of its money in `spare` and has a `status` of `null`, so you can show every row from one result.
 
 :::note
 Actual reads the templates from the last copy it stored on the category. The app updates that copy when you edit a template note. If you write a note with [`updateNote`](#updatenote), Actual does not use it until the app stores it.
@@ -172,10 +171,6 @@ Actual reads the templates from the last copy it stored on the category. The app
 #### Reservation claim
 
 <StructType fields={objects.reservationClaim} />
-
-#### Allowance
-
-<StructType fields={objects.allowance} />
 
 #### `setBudgetAmount`
 

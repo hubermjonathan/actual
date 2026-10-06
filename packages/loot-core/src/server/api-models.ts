@@ -12,7 +12,7 @@ import type {
 } from '#types/models';
 
 import type { CategoryReservationsResult } from './budget/goal-template';
-import type { Allowance, SettledClaim } from './budget/reservations';
+import type { SettledClaim } from './budget/reservations';
 import type { RemoteFile } from './cloud-storage';
 import * as models from './models';
 
@@ -298,8 +298,6 @@ export const scheduleModel = {
  * values can differ from the category total by one cent. The category fields
  * are the correct ones.
  */
-export type APIAllowanceEntity = Allowance;
-
 export type APIReservationClaimEntity = SettledClaim & { fixed: boolean };
 
 export type APICategoryReservationsEntity = Omit<

@@ -230,9 +230,9 @@ does not change the budgeted amount.
 | `#template 1000 [groceries]` |     $ 1000      |
 
 Use a label when a category holds more than one amount. Each amount then has a
-name, and you do not need a comment line. Labels also name the allowance in
-[Reservations](./reservations.md). They work on a
-[repeating By template](#repeated-savings) for the same reason.
+name, and you do not need a comment line. They work on a
+[repeating By template](#repeated-savings) too, where the label also names the
+claim in [Reservations](./reservations.md).
 
 ### By Type
 

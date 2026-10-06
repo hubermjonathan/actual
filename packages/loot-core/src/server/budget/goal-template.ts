@@ -5,7 +5,6 @@ import { batchMessages } from '#server/sync';
 import { getCurrency } from '#shared/currencies';
 import * as monthUtils from '#shared/months';
 import { q } from '#shared/query';
-import { amountToInteger } from '#shared/util';
 import type { CategoryEntity, CategoryGroupEntity } from '#types/models';
 import type { CleanupTemplate } from '#types/models/cleanup-templates';
 import type { Template } from '#types/models/templates';
@@ -14,7 +13,7 @@ import { getSheetValue, isTrackingBudget, setBudget, setGoal } from './actions';
 import { CategoryTemplateContext } from './category-template-context';
 import { tombstoneOrphanCleanupGroups } from './cleanup-groups';
 import { getByReservationClaims, settleReservations } from './reservations';
-import type { Allowance, CategoryReservations } from './reservations';
+import type { CategoryReservations } from './reservations';
 import { getScheduleReservationClaims } from './schedule-template';
 import { checkTemplateNotes, storeNoteTemplates } from './template-notes';
 import type { TemplateNotification } from './template-notification';
@@ -428,24 +427,10 @@ export async function getReservations({
 
     const claims = [...scheduleClaims, ...byClaims];
 
-    // A fixed monthly amount is an allowance. You can spend it this month, but
-    // it is already promised. It is not a reservation. A reservation is money
-    // you must not spend yet, because it belongs to a future cost.
-    const allowances: Allowance[] = categoryTemplates.flatMap(t =>
-      t.type === 'simple' && t.monthly
-        ? [
-            {
-              label: t.label ?? category.name,
-              amount: amountToInteger(t.monthly, currency.decimalPlaces),
-            },
-          ]
-        : [],
-    );
-
     results.push({
       categoryId: category.id,
       categoryName: category.name,
-      ...settleReservations(balance, claims, allowances),
+      ...settleReservations(balance, claims),
     });
   }
 

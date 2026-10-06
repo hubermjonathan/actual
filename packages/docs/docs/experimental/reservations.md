@@ -9,22 +9,19 @@ spend is then the money you can spend.
 Reservations come from the [goal templates](./goal-templates.md) that are
 already in a category. You do not set up anything, and Actual stores nothing.
 
-## The three parts
+## The two parts
 
 Actual divides a category balance into these parts:
 
-| Part          | Meaning                                           |
-| ------------- | ------------------------------------------------- |
-| **Reserved**  | Owed to a future cost. Do not spend it yet.       |
-| **Allowance** | For you to spend this month. That is its purpose. |
-| **Spare**     | Nothing claims this money.                        |
-
-Reserved and Allowance are both money with a job. Together they are
-**Committed**. Spare is the money that is left.
+| Part         | Meaning                                     |
+| ------------ | ------------------------------------------- |
+| **Reserved** | Owed to a future cost. Do not spend it yet. |
+| **Spare**    | Nothing claims this money.                  |
 
 A `#template schedule` line makes a **reservation**. This is money that builds
-up for a bill that has not arrived. A `#template 1000 [groceries]` line makes an
-**allowance**. This is money for you to spend this month.
+up for a bill that has not arrived. A `#template 1000 [groceries]` line makes no
+reservation: it budgets the category each month, and the label is a name only.
+That money is spare until you spend it.
 
 A repeating **By** template also makes a reservation. Use it for a cost that has
 no bill, such as Christmas:
@@ -55,52 +52,6 @@ balance:
 The panel appears only when something claims the balance. A category with no
 templates shows nothing more.
 
-## Why an allowance is not a reservation
-
-You should not treat either one as spare, so it is easy to count them together.
-But they answer different questions. If you count them together, you get the
-wrong answer to both.
-
-A **reservation** is money you must not spend yet. The bill has not arrived. If
-you spend the money, you cannot pay the bill.
-
-An **allowance** is money you should spend this month, on the thing it is named
-for. If you do not spend it, you did not save money. You did not buy a month of
-groceries.
-
-Look at a category with three monthly allowances:
-
-```
-#template 1000 [groceries]
-#template 150 [healthcare]
-#template 35 [dog food]
-```
-
-It is the 3rd of the month. You have spent nothing. Every schedule in the
-category is paid, so nothing is reserved. If you count the allowance as spare,
-you get this:
-
-| Part     | Amount   |
-| -------- | -------- |
-| Reserved | 0.00     |
-| Spare    | 1,185.00 |
-
-That reads as 1,185.00 that nobody uses, and the category shows as **Ahead**. It
-looks like money to move somewhere else. It is the grocery budget.
-
-If you keep the two apart, you get this:
-
-| Part      | Amount   |
-| --------- | -------- |
-| Reserved  | 0.00     |
-| Allowance | 1,185.00 |
-| Spare     | 0.00     |
-
-The allowance figure shows what is left of the allowance, not the amount it
-started at. Buy 400.00 of groceries and it falls to 785.00, because the balance
-it measures against also falls. It reaches zero when you have spent the month's
-allowances, which is the correct result.
-
 ## Moving money out
 
 Actual limits a transfer out of a category to its Balance, which is the figure
@@ -120,11 +71,16 @@ the API. Treat it as a guard, not as a lock.
 ## How much is reserved
 
 Each claim collects the same amount in each period. A $ 1,053 bill that is due
-in six months holds $ 175.50 after one month, and $ 351 after two months. After
-you pay the bill, the schedule moves forward and the claim starts again at zero.
+in six months holds $ 175.50 after one month, and $ 351 after two months.
 
-If the balance cannot pay for everything, Actual fills the claims in due-date
-order. The bill that is due first gets its money first.
+The due date comes from the schedule's calendar. After you pay the bill, the
+claim starts again at zero for the next date, and in the month you paid it the
+breakdown shows the bill as **spent**. A payment counts when a transaction is
+linked to the schedule. If the bill posts and nothing links, the claim does not
+read as spent, but it still moves on to the next date.
+
+A claim always holds its full amount. If the balance cannot cover every claim,
+the difference shows once, as a negative spare.
 
 ## Through the API
 
@@ -133,9 +89,8 @@ on them, and you do not have to read the budget yourself:
 
 ```js
 const rows = await api.getReservations('2026-09');
-// [{ categoryId, categoryName, balance, reserved, allowance,
-//    committed, spare, accrued, shortfall, target, status,
-//    claims: [...], allowances: [...] }]
+// [{ categoryId, categoryName, balance, reserved, committed, spare,
+//    accrued, shortfall, target, status, claims: [...] }]
 ```
 
 All amounts are whole cents. Actual calculates the values on each call and does
@@ -150,7 +105,7 @@ not store them. See the [API reference](../api/reference.md#getreservations).
 | **Ahead**     | You hold more than you owe up to now.                |
 | **Funded**    | Every future cost has all of its money.              |
 
-A category with no templates has no status, because there is nothing to measure.
+A category with no claims has no status, because there is nothing to measure.
 
 :::note
 Reservations tell you what a category owes. They do not change the budgeted

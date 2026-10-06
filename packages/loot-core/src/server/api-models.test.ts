@@ -9,14 +9,12 @@ function reservations(
     categoryName: 'Needs',
     balance: 564579,
     reserved: 446079,
-    allowanceTotal: 118500,
     spare: 118500,
     accrued: 446079,
     shortfall: 0,
     target: 1053000,
     status: 'onPace',
     claims: [],
-    allowances: [],
     ...overrides,
   };
 }
@@ -27,15 +25,6 @@ describe('reservationsModel.toExternal', () => {
 
     expect(external.committed).toBe(446079);
     expect(external.committed).toBe(external.balance - external.spare);
-  });
-
-  it('publishes the allowance total', () => {
-    const external = reservationsModel.toExternal(
-      reservations({ allowanceTotal: 118500 }),
-    );
-
-    expect(external.allowanceTotal).toBe(118500);
-    expect(external).not.toHaveProperty('allowance');
   });
 
   it('reports a claim without the [fixed] flag as not fixed', () => {

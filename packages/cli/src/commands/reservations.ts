@@ -8,7 +8,7 @@ type Reservations = Awaited<ReturnType<typeof api.getReservations>>;
 
 /**
  * `table` and `csv` are one value per cell, so the nested `claims` and
- * `allowances` are dropped from the summary and given their own subcommand.
+ * claims are dropped from the summary and given their own subcommand.
  * `json` always carries the whole payload.
  */
 function summaryRows(reservations: Reservations) {
@@ -16,7 +16,6 @@ function summaryRows(reservations: Reservations) {
     categoryName: r.categoryName,
     balance: r.balance,
     reserved: r.reserved,
-    allowanceTotal: r.allowanceTotal,
     committed: r.committed,
     spare: r.spare,
     status: r.status,
@@ -76,7 +75,7 @@ export function registerReservationsCommand(program: Command) {
 
   addSubcommand(
     'list',
-    'Reserved, allowance and spare per category (YYYY-MM). Table and CSV omit the per-claim detail; use `claims` for that.',
+    'Reserved and spare per category (YYYY-MM). Table and CSV omit the per-claim detail; use `claims` for that.',
     (result, format) => (format === 'json' ? result : summaryRows(result)),
   );
 
