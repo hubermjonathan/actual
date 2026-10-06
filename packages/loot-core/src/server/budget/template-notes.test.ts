@@ -424,6 +424,10 @@ describe('unparse/parse round-trip', () => {
     '#template 1000 [groceries]',
     '#template-2 50 [dog food]',
     '#template 750 by 2026-12 repeat every year [christmas]',
+    // total
+    '#template total 1000 [fun money]',
+    '#template total 1000',
+    '#template-2 total 250.50',
     // by / spend
     '#template 500 by 2025-12',
     '#template 600 by 2025-11 repeat every month',

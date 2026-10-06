@@ -36,6 +36,7 @@ function getDisplayTypeFromTemplate(template: Template): DisplayTemplateType {
       return 'remainder';
     case 'goal':
       return 'goal';
+    case 'total':
     case 'error':
       // filtered upstream by hasUnsupportedDirective; surface if it ever isn't
       throw new Error(`Unsupported template type reached migration`);

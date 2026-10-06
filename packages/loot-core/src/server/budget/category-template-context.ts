@@ -19,6 +19,7 @@ import type {
   SimpleTemplate,
   SpendTemplate,
   Template,
+  TotalTemplate,
 } from '#types/models/templates';
 
 import {
@@ -155,9 +156,10 @@ export class CategoryTemplateContext {
     if (!this.priorities.has(priority)) return 0;
     if (this.limitMet) return 0;
 
-    const t = this.templates.filter(
-      t => t.directive === 'template' && t.priority === priority,
-    );
+    // `total` goes last in its priority: it budgets what the others leave.
+    const t = this.templates
+      .filter(t => t.directive === 'template' && t.priority === priority)
+      .sort((a, b) => Number(a.type === 'total') - Number(b.type === 'total'));
     let available = budgetAvail || 0;
     let toBudget = 0;
     const perTemplateLocal = new Map<Template, number>();
@@ -176,6 +178,14 @@ export class CategoryTemplateContext {
         }
         case 'refill': {
           newBudget = CategoryTemplateContext.runRefill(template, this);
+          break;
+        }
+        case 'total': {
+          newBudget = CategoryTemplateContext.runTotal(
+            template,
+            this,
+            this.toBudgetAmount + toBudget,
+          );
           break;
         }
         case 'copy': {
@@ -415,6 +425,8 @@ export class CategoryTemplateContext {
   private limitHold = false;
   readonly previouslyBudgeted: number = 0;
   private currency: Currency;
+  /** Problems worth telling the user about, which do not stop the run. */
+  readonly warnings: string[] = [];
   // Set when every `by` template repeats. See prepareRepeatingGoals.
   private repeatingGoals: {
     claims: ReservationClaim[];
@@ -455,6 +467,27 @@ export class CategoryTemplateContext {
           this.goals.push(t);
         }
       });
+    }
+
+    // A `total` line counts every other line in the category first, so it
+    // runs at the category's last priority, whatever priority it was written
+    // with.
+    const priorityOf = (t: Template): number | null =>
+      'priority' in t && typeof t.priority === 'number' ? t.priority : null;
+    const otherPriorities = this.templates
+      .filter(t => t.type !== 'total')
+      .map(priorityOf)
+      .filter((p): p is number => p !== null);
+    if (otherPriorities.length > 0) {
+      const lastPriority = Math.max(...otherPriorities);
+      this.templates = this.templates.map(t =>
+        t.type === 'total' && (priorityOf(t) ?? 0) < lastPriority
+          ? { ...t, priority: lastPriority }
+          : t,
+      );
+      this.priorities = new Set(
+        this.templates.map(priorityOf).filter((p): p is number => p !== null),
+      );
     }
 
     this.checkLimit(templates);
@@ -750,6 +783,30 @@ export class CategoryTemplateContext {
     } else {
       return templateContext.limitAmount - templateContext.fromLastMonth;
     }
+  }
+
+  /**
+   * The rest of `amount` once the category's other lines have budgeted.
+   *
+   * Never negative: when the other lines already cost more than the total,
+   * they keep their money - a bill is not underfunded to honour a total - and
+   * the overrun is reported instead.
+   */
+  static runTotal(
+    template: TotalTemplate,
+    templateContext: CategoryTemplateContext,
+    budgetedByOthers: number,
+  ): number {
+    const total = amountToInteger(
+      template.amount,
+      templateContext.currency.decimalPlaces,
+    );
+    if (budgetedByOthers > total) {
+      templateContext.warnings.push(
+        `${templateContext.category.name}: the other lines budget ${integerToAmount(budgetedByOthers)}, more than the total of ${template.amount}`,
+      );
+    }
+    return Math.max(0, total - budgetedByOthers);
   }
 
   static runRefill(
