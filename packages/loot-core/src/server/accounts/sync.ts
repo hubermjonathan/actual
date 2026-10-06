@@ -695,6 +695,29 @@ export async function reconcileTransactions(
           existing.raw_synced_data ?? trans.raw_synced_data ?? null,
       };
 
+      // A pending charge often settles for a different amount (a tip, a
+      // released hold). Take the bank's amount, and the payload that carries
+      // it, so the stored copy does not hide the change. The payload is only
+      // replaced on a real change: some providers rewrite it on every sync.
+      // A split's children must add up to its total, so a new amount on a
+      // parent is left alone rather than divided by guesswork.
+      const amountChanged =
+        trans.amount != null && trans.amount !== existing.amount;
+      if (amountChanged && existing.is_parent) {
+        logger.warn(
+          `Bank sync: not changing split transaction ${existing.id} from ${existing.amount} to ${trans.amount}`,
+        );
+      } else if (amountChanged) {
+        updates['amount'] = trans.amount;
+      }
+      if (
+        (updates['amount'] !== undefined ||
+          existing.cleared !== updates.cleared) &&
+        trans.raw_synced_data
+      ) {
+        updates.raw_synced_data = trans.raw_synced_data;
+      }
+
       if (updateDates && trans.date) {
         updates['date'] = trans.date;
       }

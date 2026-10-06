@@ -739,6 +739,133 @@ describe('Account sync', () => {
   );
 });
 
+describe('Account sync, a pending transaction that settles', () => {
+  async function bankPayload(id: string) {
+    const row = await db.first<{ raw_synced_data: string }>(
+      'SELECT raw_synced_data FROM transactions WHERE id = ?',
+      [id],
+    );
+    return JSON.parse(row.raw_synced_data);
+  }
+
+  const pending = {
+    date: '2024-04-05',
+    amount: -3417,
+    imported_payee: 'Pho Than Brothers',
+    payee_name: 'Pho Than Brothers',
+    imported_id: 'TRN-7207d6c1',
+    cleared: false,
+    raw_synced_data: JSON.stringify({ amount: '-34.17', booked: false }),
+  };
+  const settled = {
+    ...pending,
+    amount: -4100,
+    cleared: true,
+    raw_synced_data: JSON.stringify({ amount: '-41.00', booked: true }),
+  };
+
+  test('takes the settled amount and the latest bank payload', async () => {
+    const { id } = await prepareDatabase();
+    await reconcileTransactions(id, [pending]);
+
+    const { updated } = await reconcileTransactions(id, [settled]);
+
+    const transactions = await getAllTransactions();
+    expect(transactions.length).toBe(1);
+    expect(transactions[0].amount).toBe(-4100);
+    expect(transactions[0].cleared).toBe(1);
+    expect((await bankPayload(transactions[0].id)).booked).toBe(true);
+    expect(updated).toEqual([transactions[0].id]);
+  });
+
+  test('keeps the category and notes already on the transaction', async () => {
+    const { id } = await prepareDatabase();
+    const categoryId = await db.insertCategory({
+      name: 'eating out',
+      cat_group: 'group1',
+    });
+    await reconcileTransactions(id, [pending]);
+    const [before] = await getAllTransactions();
+    await db.updateTransaction({
+      id: before.id,
+      category: categoryId,
+      notes: 'dinner with friends',
+    });
+
+    await reconcileTransactions(id, [settled]);
+
+    const [after] = await getAllTransactions();
+    expect(after.amount).toBe(-4100);
+    expect(after.category).toBe(categoryId);
+    expect(after.notes).toBe('dinner with friends');
+  });
+
+  test('leaves a reconciled transaction alone', async () => {
+    const { id } = await prepareDatabase();
+    await reconcileTransactions(id, [pending]);
+    const [before] = await getAllTransactions();
+    await db.updateTransaction({ id: before.id, reconciled: true });
+
+    await reconcileTransactions(id, [settled]);
+
+    const [after] = await getAllTransactions();
+    expect(after.amount).toBe(-3417);
+    expect((await bankPayload(after.id)).booked).toBe(false);
+  });
+
+  test('does not change the total of a split, so its parts still add up', async () => {
+    const { id } = await prepareDatabase();
+    await reconcileTransactions(id, [pending]);
+    const [parent] = await getAllTransactions();
+    await db.updateTransaction({ id: parent.id, is_parent: true });
+    for (const amount of [-1000, -2417]) {
+      await db.insertTransaction({
+        account: id,
+        date: pending.date,
+        amount,
+        parent_id: parent.id,
+        is_child: true,
+      });
+    }
+
+    await reconcileTransactions(id, [settled]);
+
+    const transactions = await getAllTransactions();
+    const after = transactions.find(t => t.id === parent.id);
+    const children = transactions.filter(t => t.parent_id === parent.id);
+    expect(after.amount).toBe(-3417);
+    expect(after.cleared).toBe(1);
+    expect(children.reduce((sum, t) => sum + t.amount, 0)).toBe(-3417);
+  });
+
+  test('keeps the stored payload when only the payload changed', async () => {
+    const { id } = await prepareDatabase();
+    const posted = { ...pending, cleared: true };
+    await reconcileTransactions(id, [posted]);
+
+    const { updated } = await reconcileTransactions(id, [
+      { ...posted, raw_synced_data: JSON.stringify({ category: 'later' }) },
+    ]);
+
+    expect(updated).toEqual([]);
+    const [after] = await getAllTransactions();
+    expect((await bankPayload(after.id)).booked).toBe(false);
+  });
+
+  test('changes nothing when the amount has not moved', async () => {
+    const { id } = await prepareDatabase();
+    await reconcileTransactions(id, [{ ...pending, cleared: true }]);
+
+    const { updated } = await reconcileTransactions(id, [
+      { ...pending, cleared: true },
+    ]);
+
+    expect(updated).toEqual([]);
+    const [after] = await getAllTransactions();
+    expect(after.amount).toBe(-3417);
+  });
+});
+
 describe('SimpleFin batch sync', () => {
   function mockSimpleFinTransactions(response) {
     vi.mocked(asyncStorage.getItem).mockResolvedValue('test-token');
