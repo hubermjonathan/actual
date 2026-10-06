@@ -311,16 +311,22 @@ function getMonthlyBaseContribution(schedule: ScheduleTemplateTarget) {
 }
 
 /**
- * What a claim should already have set aside, at its flat monthly rate.
+ * What a claim held at the end of last month, at its flat monthly rate.
  *
  * Used to keep a `[fixed]` claim's savings out of the pooled allocator's reach:
  * the pooled claims must not be credited with money that is already spoken for.
+ *
+ * Last month, not this one: `num_months` counts from the budget month, and
+ * this month's contribution is what the template is about to add. Counting it
+ * as held already made the pool look short by one month of every fixed claim,
+ * and the shortfall came back as a budget of a fraction of a cent - 389.1166...
+ * for `Wants (Reserved)` in October 2026, where 305.48 was right.
  */
-function getAccruedToDate(schedule: ScheduleTemplateTarget) {
+function getHeldAtMonthStart(schedule: ScheduleTemplateTarget) {
   return accruedToDate({
     target: schedule.target,
     monthlyRate: getMonthlyBaseContribution(schedule),
-    monthsRemaining: schedule.num_months,
+    monthsRemaining: schedule.num_months + 1,
   });
 }
 
@@ -545,7 +551,11 @@ export async function runSchedule(
   const t_fixed = t_allSinking.filter(c => c.template.fixed);
   const t_sinking = t_allSinking.filter(c => !c.template.fixed);
   const fixedContribution = getSinkingBaseContributionTotal(t_fixed);
-  const fixedHeld = t_fixed.reduce((sum, c) => sum + getAccruedToDate(c), 0);
+  // Whole cents: the pool is subtracted from a budget amount, which must be
+  // an integer.
+  const fixedHeld = Math.round(
+    t_fixed.reduce((sum, c) => sum + getHeldAtMonthStart(c), 0),
+  );
   const poolBalance = last_month_balance - fixedHeld;
 
   const numSubMonthly = t.t.filter(isSubMonthly).length;

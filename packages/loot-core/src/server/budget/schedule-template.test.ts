@@ -775,6 +775,86 @@ describe('runSchedule', () => {
   });
 });
 
+describe('a category whose only sinking claims are [fixed]', () => {
+  // Wants (Reserved), October 2026: two monthly bills due this month, and the
+  // yearly ones all [fixed]. The balance held exactly what the fixed claims
+  // had saved by the end of September, so the month needs the two bills and
+  // one month of each fixed claim - 305.48. It asked for 389.1166..., which
+  // also could not be saved.
+  const lines = [
+    {
+      type: 'schedule',
+      name: 'Bill',
+      priority: 0,
+      directive: 'template',
+    } as const,
+    {
+      type: 'schedule',
+      name: 'Pass',
+      fixed: true,
+      priority: 0,
+      directive: 'template',
+    } as const,
+  ];
+  // 1,000.00 a year due in March: 83.33... a month, 416.67 held by the end of
+  // August (5 of 12 months saved, 7 to go).
+  const specs = {
+    Bill: {
+      spec: {
+        start: '2024-08-15',
+        amount: -50000,
+        frequency: 'monthly' as const,
+      },
+    },
+    Pass: {
+      spec: {
+        start: '2024-03-01',
+        amount: -100000,
+        frequency: 'yearly' as const,
+      },
+    },
+  };
+
+  it('budgets the bills and one month of the fixed claim, in whole cents', async () => {
+    mockSchedulesByName(specs);
+    const held = 41667;
+
+    const result = await runSchedule(
+      lines,
+      '2024-09-01',
+      held,
+      0,
+      held,
+      0,
+      [],
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(Number.isInteger(result.to_budget)).toBe(true);
+    expect(result.to_budget).toBe(50000 + 8333);
+  });
+
+  it('catches up a fixed claim the balance does not cover', async () => {
+    mockSchedulesByName(specs);
+
+    // 100.00 short of what Pass should hold.
+    const result = await runSchedule(
+      lines,
+      '2024-09-01',
+      31667,
+      0,
+      31667,
+      0,
+      [],
+      defaultCategory,
+      defaultCurrency,
+    );
+
+    expect(result.to_budget).toBe(50000 + 8333 + 10000);
+  });
+});
+
 describe('getScheduleReservationClaims', () => {
   const template_lines = [
     {
