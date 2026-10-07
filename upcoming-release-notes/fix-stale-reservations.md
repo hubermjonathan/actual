@@ -3,4 +3,4 @@ category: Bugfix
 authors: [hubermjonathan]
 ---
 
-Fix reserved amounts not updating after budget or transaction changes, and limit mobile category transfers to the spare amount
+Fix reserved amounts that did not update after a budget or transaction change, and limit transfers on mobile to the spare amount

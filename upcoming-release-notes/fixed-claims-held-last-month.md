@@ -1,6 +1,6 @@
 ---
-category: Bugfixes
+category: Bugfix
 authors: [hubermjonathan]
 ---
 
-Fix schedule templates with `[fixed]` schedules: the money those schedules should hold at the start of the month is now taken from last month's balance in whole cents, so the template no longer asks for an extra month or a fraction of a cent that cannot be saved
+Fix schedule templates that budgeted too much, sometimes with a fraction of a cent, in a category that has a `[fixed]` schedule

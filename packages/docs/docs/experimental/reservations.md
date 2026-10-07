@@ -2,114 +2,118 @@
 
 <ExperimentalFeatureWarning />
 
-A category balance can look like money you can spend, when part of it is owed to
-a future cost. Reservations divide the balance. The number you read before you
-spend is then the money you can spend.
+A category that saves for a future bill holds money you must not spend yet.
+Without reservations, that money looks the same as money you can spend.
+Reservations divide the category balance into a **reserved** part, which
+belongs to a future cost, and a **spare** part, which nothing claims.
 
-Reservations come from the [goal templates](./goal-templates.md) that are
-already in a category. You do not set up anything, and Actual stores nothing.
+Reservations come from the [budget templates](./goal-templates.md) that are
+already in a category. You do not set anything up. Actual stores no
+reservations. It calculates them again each time the budget changes. The app
+shows reservations only when the **Goal templates** experimental feature is on,
+and on desktop only in the envelope budget.
 
-## The two parts
+## Which Templates Reserve Money
 
-Actual divides a category balance into these parts:
+Each of these template lines makes one **claim** on the category balance:
 
-| Part         | Meaning                                     |
-| ------------ | ------------------------------------------- |
-| **Reserved** | Owed to a future cost. Do not spend it yet. |
-| **Spare**    | Nothing claims this money.                  |
+- A `#template schedule` line claims money for a bill that has not arrived.
+- A **By** template that repeats claims money for a cost that has no bill, such
+  as Christmas:
 
-A `#template schedule` line makes a **reservation**. This is money that builds
-up for a bill that has not arrived. A `#template 1000 [groceries]` line makes no
-reservation: it budgets the category each month, and the label is a name only.
-That money is spare until you spend it.
+  ```
+  #template 750 by 2026-12 repeat every year [christmas]
+  ```
 
-A repeating **By** template also makes a reservation. Use it for a cost that has
-no bill, such as Christmas:
+Other lines make no claim. A `#template 1000 [groceries]` line budgets the
+category each month, and the `[groceries]` label is a name only. That money is
+spare until you spend it. A By template that does not repeat makes no claim
+either, because it has no cycle. After its month passes, there is no amount
+that you should hold.
 
-```
-#template 750 by 2026-12 repeat every year [christmas]
-```
+A claim takes its name from the schedule, or from the label of the By template.
+A By template without a label takes the name of the category.
 
-The two types end their cycle in different ways. A bill reservation starts again
-when the payment posts. An occasion reservation starts again when the **date
-passes**, because Christmas comes whether or not you spent the money. Its target
-month then moves forward by itself. A By template that does not repeat has no
-cycle, so it is not a reservation.
+Actual reads the template lines that it stored the last time you applied budget
+templates. After you change a template note, apply the templates again to
+update the reservations.
 
-## Where to see it
+## How Much a Claim Holds
 
-Actual removes the reserved part from the **Balance** column. The number you
-read before you spend is the money you can spend. Hold the pointer over it to
-see the parts:
+A claim collects the same amount each month, from the start of its cycle to the
+month the cost is due. That amount is the cost divided by the number of months
+in the cycle. For example, a $ 1,053 bill that repeats every six months holds
+$ 175.50 one month after you pay it, $ 351 two months after, and the full
+$ 1,053 in the month it is due.
+
+The two kinds of claim start a new cycle at different times:
+
+- A bill claim starts again when you pay the bill. Actual counts a payment when
+  a transaction in that month is linked to the schedule. The claim then holds
+  $ 0 for the next due date. For the rest of that month, the breakdown lists
+  the bill as **spent**, with the bill amount. That amount is not part of
+  Reserved.
+- An occasion claim, from a repeating By template, starts again when its month
+  ends. Christmas comes whether or not you spent the money. Actual then moves
+  the target to the next year by itself.
+
+If a bill posts and no transaction is linked to the schedule, the claim does
+not show as spent. It holds the full amount until the month ends, and then it
+moves to the next due date from the schedule's calendar.
+
+A claim always holds its full amount, even when the balance is too small. If
+the balance cannot pay for every claim, the breakdown shows the difference as
+**Overspent** in place of Spare.
+
+## What the Budget Shows
+
+Actual takes the reserved part out of the **Balance** column, so the number you
+read before you spend is the money you can spend. On desktop, the balance of
+each category group also leaves out the reserved part.
+
+To see the parts, hold the pointer over a category's balance. The breakdown
+shows **Reserved** with each claim under it, a line, and then **Spare**. A
+status line comes last.
 
 ![The balance breakdown on hover](/img/reservations/balance-hover.png)
 
-Mobile has no pointer, so the same breakdown is in the balance menu. Tap the
-balance:
+On mobile, tap the balance. The balance menu shows the same breakdown.
 
 ![The balance breakdown on mobile](/img/reservations/mobile-balance-menu.png)
 
-The panel appears only when something claims the balance. A category with no
-templates shows nothing more.
+The breakdown appears only for a category that has at least one claim.
 
-## Moving money out
+The status line compares the balance with the claims:
 
-Actual limits a transfer out of a category to its Balance, which is the figure
-with the reservations already removed. You then cannot move money that is
-building up for a bill by mistake.
+| Status               | Meaning                                                                       |
+| -------------------- | ----------------------------------------------------------------------------- |
+| **Shortfall of $ X** | The balance is $ X less than the claims hold.                                 |
+| **On pace**          | The balance is equal to what the claims hold. Nothing is spare.               |
+| **Ahead by $ X**     | The balance is $ X more than the claims hold, but less than their full costs. |
+| **Fully funded**     | The balance pays for the full cost of every claim.                            |
 
-This limit applies to **Transfer**. It does not apply to **Cover**. Cover moves
-money into a category that has overspent, and a reservation is not a reason to
-stop that.
+Reservations do not change the budgeted amount. The templates set that amount.
+If a category always shows a shortfall, see the
+[Fixed Flag](./goal-templates.md#fixed-flag).
 
-:::note
-The limit stops a mistake. It does not stop you if you want the money. You can
-still get it by changing the budgeted amount, from the mobile budget, or through
-the API. Treat it as a guard, not as a lock.
-:::
+## Why Transfers Are Limited
 
-## How much is reserved
+**Transfer** cannot move more out of a category than its Balance, which is the
+amount with the reserved part already taken out. This stops you from moving
+money that is saved for a bill by mistake. The limit applies on desktop and on
+mobile.
 
-Each claim collects the same amount in each period. A $ 1,053 bill that is due
-in six months holds $ 175.50 after one month, and $ 351 after two months.
-
-The due date comes from the schedule's calendar. After you pay the bill, the
-claim starts again at zero for the next date, and in the month you paid it the
-breakdown shows the bill as **spent**. A payment counts when a transaction is
-linked to the schedule. If the bill posts and nothing links, the claim does not
-read as spent, but it still moves on to the next date.
-
-A claim always holds its full amount. If the balance cannot cover every claim,
-the difference shows once, as a negative spare. The breakdown calls it
-**Overspent**.
-
-## Through the API
-
-`getReservations` returns the same values for a month. A script can then report
-on them, and you do not have to read the budget yourself:
-
-```js
-const rows = await api.getReservations('2026-09');
-// [{ categoryId, categoryName, balance, reserved, spare, accrued,
-//    shortfall, target, status, claims: [...] }]
-```
-
-All amounts are whole cents. Actual calculates the values on each call and does
-not store them. See the [API reference](../api/reference.md#getreservations).
-
-## Status
-
-| Status        | Meaning                                              |
-| ------------- | ---------------------------------------------------- |
-| **On pace**   | Each claim holds the correct amount for today.       |
-| **Shortfall** | The balance is less than the amount you should hold. |
-| **Ahead**     | You hold more than you owe up to now.                |
-| **Funded**    | Every future cost has all of its money.              |
-
-A category with no claims has no status, because there is nothing to measure.
+**Cover** has no such limit. It can take reserved money from another category
+to cover an overspent category. Money saved for a later bill is not a reason to
+leave a category overspent today.
 
 :::note
-Reservations tell you what a category owes. They do not change the budgeted
-amount. The templates set that amount. If a category always shows a shortfall,
-see the [Fixed Flag](./goal-templates.md#fixed-flag).
+The limit stops a mistake. It does not lock the money. You can still move it
+when you change a budgeted amount, or through the API.
 :::
+
+## Read Reservations From a Script
+
+The API method [`getReservations`](../api/reference.md#getreservations) returns
+the same values for a month. The CLI command
+[`actual reservations`](../api/cli.md#reservations) prints them.

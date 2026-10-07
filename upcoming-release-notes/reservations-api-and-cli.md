@@ -3,7 +3,4 @@ category: Features
 authors: [hubermjonathan]
 ---
 
-Add `getReservations(month)` to the API, and `actual reservations list <month>`
-and `actual reservations claims <month>` to the CLI. Both return each category
-balance divided into reserved and spare, with the claims behind those values.
-You can now read what a category owes from a script, not only in the app.
+Add `getReservations` to the API and `actual reservations` to the CLI, so that a script can read the reserved and spare amounts of each category
