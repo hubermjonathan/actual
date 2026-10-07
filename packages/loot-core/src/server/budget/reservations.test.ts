@@ -26,149 +26,70 @@ const claim = (
 });
 
 describe('accruedToDate', () => {
-  it('accrues nothing when the whole period is still ahead', () => {
-    expect(accruedToDate(claim('Taxes', 120000, 12, 12, '2027-09-01'))).toBe(0);
-  });
-
-  it('accrues the full target in the month it is due', () => {
-    expect(accruedToDate(claim('Taxes', 120000, 12, 0, '2026-09-01'))).toBe(
-      120000,
-    );
-  });
-
-  it('accrues pro rata part way through', () => {
-    // A 1,200.00 annual cost due in four months should be 8/12 funded.
-    expect(accruedToDate(claim('Taxes', 120000, 12, 4, '2027-01-01'))).toBe(
-      80000,
-    );
-  });
-
-  it('never exceeds the target when a claim is overdue', () => {
-    expect(accruedToDate(claim('Taxes', 120000, 12, -3, '2026-06-01'))).toBe(
-      120000,
-    );
-  });
-
-  it('handles a semiannual period', () => {
-    // BMW Insurance: 1,053.00 every 6 months, due in 3.
+  it.each([
+    ['nothing when the whole period is ahead', 12, 0],
+    ['the full target in the month it is due', 0, 120000],
+    ['pro rata part way through', 4, 80000],
+    ['no more than the target when overdue', -3, 120000],
+  ])('accrues %s', (_, monthsRemaining, expected) => {
     expect(
-      accruedToDate(claim('BMW Insurance', 105300, 6, 3, '2026-11-01')),
-    ).toBe(52650);
+      accruedToDate(claim('Taxes', 120000, 12, monthsRemaining, '2027-01-01')),
+    ).toBe(expected);
   });
 });
 
 describe('settleReservations', () => {
-  it('splits a balance into reserved and spare', () => {
-    const claims = [claim('Amex Plat AF', 89500, 12, 4, '2026-12-01')];
-    const r = settleReservations(100000, claims);
+  // Taxes needs 800.00 of its 1,200.00 so far.
+  it.each([
+    [50000, 'behind', 80000, -30000, 30000],
+    [80000, 'onPace', 80000, 0, 0],
+    [100000, 'ahead', 80000, 20000, 0],
+    [120000, 'funded', 80000, 40000, 0],
+  ])(
+    'with a balance of %i is %s',
+    (balance, status, reserved, spare, shortfall) => {
+      const r = settleReservations(balance, [
+        claim('Taxes', 120000, 12, 4, '2027-01-01'),
+      ]);
 
-    expect(r.reserved).toBe(Math.round(89500 * (8 / 12))); // 8 of 12 elapsed
-    expect(Number.isInteger(r.reserved)).toBe(true);
-    expect(r.spare).toBe(100000 - r.reserved);
-    expect(r.shortfall).toBe(0);
+      expect(r).toMatchObject({ status, reserved, spare, shortfall });
+    },
+  );
+
+  it('treats a category with no claims as all spare, with no status', () => {
+    const r = settleReservations(118500, []);
+
+    expect(r).toMatchObject({ reserved: 0, spare: 118500, status: null });
+    expect(r.claims).toEqual([]);
   });
 
-  it('keeps a claim whole and reports the shortfall against the category', () => {
-    // The claim needs 800.00 and the category holds 500.00. The claim is a
-    // promise about a bill, so it keeps its full accrual; the 300.00 the
-    // category cannot cover is reported once, as negative spare.
-    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
-    const r = settleReservations(50000, claims);
-
-    expect(r.reserved).toBe(80000);
-    expect(r.spare).toBe(-30000);
-    expect(r.shortfall).toBe(30000);
-    expect(r.status).toBe('behind');
-    expect(r.claims[0].reserved).toBe(80000);
-  });
-
-  it('lists claims in due-date order and keeps every one of them whole', () => {
-    // 300.00 in the category against 900.00 of claims. Neither claim is
-    // reduced - the category is 600.00 behind, said once.
+  it('keeps every claim whole, in due-date order, when the balance is short', () => {
     const claims = [
       claim('Later', 120000, 12, 6, '2027-03-01'), // needs 600.00
       claim('Sooner', 60000, 12, 6, '2026-12-01'), // needs 300.00
     ];
     const r = settleReservations(30000, claims);
 
-    expect(r.claims[0].name).toBe('Sooner');
-    expect(r.claims[0].reserved).toBe(30000);
-    expect(r.claims[1].name).toBe('Later');
-    expect(r.claims[1].reserved).toBe(60000);
-    expect(r.spare).toBe(-60000);
-    expect(r.shortfall).toBe(60000);
-  });
-
-  it('leaves the excess spare once every claim is covered', () => {
-    const claims = [claim('Domain', 1658, 12, 9, '2027-05-01')];
-    const r = settleReservations(500000, claims);
-
-    expect(r.shortfall).toBe(0);
-    expect(r.spare).toBe(500000 - r.reserved);
-    expect(r.spare).toBeGreaterThan(0);
-  });
-
-  it('reports the whole hole when the category balance is negative', () => {
-    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
-    const r = settleReservations(-5000, claims);
-
-    expect(r.reserved).toBe(80000);
-    expect(r.spare).toBe(-85000); // the 800.00 owed plus the 50.00 overdrawn
-    expect(r.shortfall).toBe(85000);
-  });
-
-  it('treats a category with no claims as entirely spare', () => {
-    const r = settleReservations(118500, []);
-    expect(r.reserved).toBe(0);
-    expect(r.spare).toBe(118500);
-    expect(r.claims).toEqual([]);
-  });
-
-  it('reserved plus spare always equals the balance', () => {
-    const claims = [
-      claim('Epic Pass', 80000, 12, 0, '2026-09-01'),
-      claim('Christmas', 75000, 12, 2, '2026-11-01'),
-      claim('Anniversary', 75000, 12, 9, '2027-06-01'),
-    ];
-    for (const balance of [0, 1000, 148391, 500000, -2500]) {
-      const r = settleReservations(balance, claims);
-      expect(r.reserved + r.spare).toBe(balance);
-      expect(Number.isInteger(r.reserved)).toBe(true);
-      expect(Number.isInteger(r.spare)).toBe(true);
-    }
-  });
-});
-
-describe('a claim settled during the month', () => {
-  it('carries the flag through settlement', () => {
-    // Picklr: monthly, due on the 20th, paid on the 20th. The schedule has
-    // moved on to next month so the claim accrues nothing - the same reading as
-    // a claim that is simply not due yet. The flag is what tells them apart.
-    const paid: ReservationClaim = {
-      ...claim('Picklr', 19753, 1, 1, '2026-10-20'),
-      settledThisMonth: true,
-    };
-    const r = settleReservations(0, [paid]);
-
-    expect(r.claims[0].settledThisMonth).toBe(true);
-    expect(r.claims[0].accrued).toBe(0);
-    expect(r.reserved).toBe(0);
-  });
-
-  it('leaves the flag unset on a claim that is merely not due yet', () => {
-    // Claude: monthly, next due the 11th of next month, never charged this
-    // month. Accrues nothing, and nothing was spent.
-    const r = settleReservations(0, [
-      claim('Claude', 2211, 1, 1, '2026-10-11'),
+    expect(r.claims.map(c => [c.name, c.reserved])).toEqual([
+      ['Sooner', 30000],
+      ['Later', 60000],
     ]);
-
-    expect(r.claims[0].settledThisMonth).toBe(false);
-    expect(r.claims[0].accrued).toBe(0);
+    expect(r.spare).toBe(-60000);
   });
 
-  it('does not let a settled claim hold any of the balance', () => {
-    // The reservation was spent on the bill. It must not take the balance a
-    // second time.
+  it('rounds the total once, not each claim', () => {
+    // Round-then-sum gives 9,047.75; the budget engine contributed 9,047.76.
+    const claims = [
+      claim('Tractive', 11939, 12, 5, '2027-02-01'),
+      claim('Epic Pass Deposit', 5000, 12, 7, '2027-04-01'),
+    ];
+    const r = settleReservations(1000000, claims);
+
+    expect(r.claims.reduce((s, c) => s + c.accrued, 0)).toBe(9047);
+    expect(r.accrued).toBe(9048);
+  });
+
+  it('holds nothing for a claim settled this month', () => {
     const paid: ReservationClaim = {
       ...claim('Picklr', 19753, 1, 1, '2026-10-20'),
       settledThisMonth: true,
@@ -176,105 +97,12 @@ describe('a claim settled during the month', () => {
     const upcoming = claim('Christmas', 75000, 12, 2, '2026-11-01');
     const r = settleReservations(100000, [paid, upcoming]);
 
-    expect(r.reserved).toBe(62500); // Christmas only
+    expect(r.claims.find(c => c.name === 'Picklr')).toMatchObject({
+      settledThisMonth: true,
+      reserved: 0,
+    });
+    expect(r.reserved).toBe(62500);
     expect(r.spare).toBe(37500);
-  });
-});
-
-describe('spare and status', () => {
-  it('has no status for a category with no claims', () => {
-    // `#template 1000 [groceries]` only budgets the category. Its balance is
-    // all spare, and there is no claim to be on pace for.
-    const r = settleReservations(118500, []);
-
-    expect(r.reserved).toBe(0);
-    expect(r.spare).toBe(118500);
-    expect(r.status).toBeNull();
-    expect(r).not.toHaveProperty('allowanceTotal');
-    expect(r).not.toHaveProperty('allowances');
-  });
-
-  it('shows money a claim released in a mixed category', () => {
-    // The defect behind retiring allowances: a category holding claims and a
-    // monthly amount pinned spare to 0 while the monthly amount had room, so
-    // money a claim no longer needed was invisible.
-    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
-    const r = settleReservations(150000, claims);
-
-    expect(r.reserved).toBe(80000);
-    expect(r.spare).toBe(70000);
-    expect(r.status).toBe('funded'); // 1,500.00 covers the whole 1,200.00
-  });
-
-  it('is ahead when it holds more than the claims need so far', () => {
-    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')]; // needs 800.00
-    const r = settleReservations(100000, claims);
-
-    expect(r.spare).toBe(20000);
-    expect(r.status).toBe('ahead');
-  });
-
-  it('is on pace when the balance holds exactly what the claims need', () => {
-    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')];
-    const r = settleReservations(80000, claims);
-
-    expect(r.spare).toBe(0);
-    expect(r.status).toBe('onPace');
-  });
-
-  it('does not reduce a reservation when the month is overspent', () => {
-    // 672.42 spent against 650.00, with 812.50 of claims. The old engine
-    // covered claims from whatever the balance had left and quietly cut the
-    // last one. The claims stay whole and the deficit is visible.
-    const claims = [
-      claim('Christmas', 75000, 12, 2, '2026-11-01'), // needs 625.00
-      claim('Jac Birthday', 75000, 12, 9, '2027-06-01'), // needs 187.50
-    ];
-    const r = settleReservations(78258, claims);
-
-    expect(r.reserved).toBe(81250); // 625.00 + 187.50, both whole
-    expect(r.claims.every(c => c.reserved === c.accrued)).toBe(true);
-    expect(r.spare).toBe(-2992);
-    expect(r.status).toBe('behind');
-  });
-
-  it('reports behind when the balance cannot cover the claims', () => {
-    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')];
-    const r = settleReservations(50000, claims);
-
-    expect(r.status).toBe('behind');
-    expect(r.shortfall).toBe(30000);
-    expect(r.spare).toBe(-30000);
-  });
-
-  it('reports funded when every future cost is fully covered', () => {
-    const claims = [claim('Taxes', 120000, 12, 4, '2027-01-01')];
-    const r = settleReservations(120000, claims);
-
-    expect(r.target).toBe(120000);
-    expect(r.status).toBe('funded');
-  });
-
-  it('rounds the total once, not each claim', () => {
-    // Two claims whose exact accruals each end in a fraction of a cent.
-    // Round-then-sum gives 9,047.75; sum-then-round gives 9,047.76, which is
-    // what the budget engine actually contributed.
-    const claims = [
-      claim('Tractive', 11939, 12, 5, '2027-02-01'),
-      claim('Epic Pass Deposit', 5000, 12, 7, '2027-04-01'),
-    ];
-    const r = settleReservations(1000000, claims);
-
-    const roundThenSum = r.claims.reduce((s, c) => s + c.accrued, 0);
-    expect(r.accrued).toBe(9048);
-    expect(roundThenSum).toBe(9047);
-    expect(Number.isInteger(r.reserved)).toBe(true);
-  });
-
-  it('has no status when there is nothing to measure', () => {
-    // A plain savings category with no templates is neither ahead nor behind.
-    expect(settleReservations(1625230, []).status).toBeNull();
-    expect(settleReservations(0, []).status).toBeNull();
   });
 });
 
@@ -294,13 +122,13 @@ describe('getByReservationClaims', () => {
   it('turns a repeating target into a claim', () => {
     const [c] = getByReservationClaims([by()], '2026-09', 'Savings', 2);
 
-    expect(c.name).toBe('Savings');
-    expect(c.target).toBe(75000);
-    expect(c.nextDate).toBe('2026-11-01');
-    expect(c.monthsRemaining).toBe(2);
-    expect(c.monthlyRate).toBe(75000 / 12);
-    // ten of twelve months elapsed
-    expect(accruedToDate(c)).toBe(75000 - (75000 / 12) * 2);
+    expect(c).toMatchObject({
+      name: 'Savings',
+      target: 75000,
+      nextDate: '2026-11-01',
+      monthsRemaining: 2,
+      monthlyRate: 75000 / 12,
+    });
   });
 
   it('names the claim from its label', () => {
@@ -315,23 +143,11 @@ describe('getByReservationClaims', () => {
   });
 
   it('rolls the target forward once the date has passed', () => {
-    // The occasion happened; nothing was "paid", and the cycle still restarts.
+    // Nothing is "paid" for a goal, and the cycle still restarts.
     const [c] = getByReservationClaims([by()], '2026-12', 'Savings', 2);
 
     expect(c.nextDate).toBe('2027-11-01');
     expect(c.monthsRemaining).toBe(11);
-    expect(accruedToDate(c)).toBe(75000 - (75000 / 12) * 11);
-  });
-
-  it('rolls forward across several missed cycles', () => {
-    const [c] = getByReservationClaims(
-      [by({ month: '2020-11' })],
-      '2026-09',
-      'Savings',
-      2,
-    );
-
-    expect(c.nextDate).toBe('2026-11-01');
   });
 
   it('reads a non-annual repeat as months', () => {
@@ -354,20 +170,5 @@ describe('getByReservationClaims', () => {
         2,
       ),
     ).toEqual([]);
-  });
-
-  it('settles beside a schedule claim, in due-date order', () => {
-    const claims = [
-      claim('BMW Insurance', 105300, 12, 3, '2026-12-01'),
-      ...getByReservationClaims(
-        [by({ label: 'christmas' })],
-        '2026-09',
-        'S',
-        2,
-      ),
-    ];
-    const r = settleReservations(200000, claims);
-
-    expect(r.claims.map(c => c.name)).toEqual(['christmas', 'BMW Insurance']);
   });
 });

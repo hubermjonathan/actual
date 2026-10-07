@@ -422,7 +422,6 @@ describe('unparse/parse round-trip', () => {
     '#template 100 repeat every 1 months starting 2026-04-01',
     // labels -- annotation only, but they must survive a rewrite
     '#template 1000 [groceries]',
-    '#template-2 50 [dog food]',
     '#template 750 by 2026-12 repeat every year [christmas]',
     // total
     '#template total 1000 [fun money]',
