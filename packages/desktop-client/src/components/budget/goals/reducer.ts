@@ -83,6 +83,7 @@ export const getInitialState = (template: Template | null): ReducerState => {
         displayType: 'goal',
       };
     case 'total':
+      throw new Error('A total template can only be edited in the note');
     case 'error':
       throw new Error('An error occurred while parsing the template');
     default:
