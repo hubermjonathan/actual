@@ -977,9 +977,8 @@ describe('CategoryTemplateContext', () => {
     });
 
     describe('when every goal repeats', () => {
-      // The five 750.00 gift goals in `Wants (Reserved)`, in October 2026. At
-      // the end of September they should hold 625.00 + 500.00 + 500.00 +
-      // 187.50 + 187.50 = 2,000.00.
+      // Five 750.00 yearly goals that should hold 2,000.00 at the end of
+      // September 2026.
       const goal = (label: string, month: string): ByTemplate => ({
         type: 'by',
         amount: 750,
@@ -1008,25 +1007,19 @@ describe('CategoryTemplateContext', () => {
         return CategoryTemplateContext.runBy(context);
       };
 
-      it('budgets the same flat rate every month when on pace', async () => {
-        const result = await budgetFor(200000);
-        expect(result.toBudget).toBe(31250); // 5 x 62.50
-      });
+      // Upstream subtracts the whole balance, so spare money made the goals
+      // look funded.
+      it.each([200000, 300000])(
+        'budgets the flat rate with %i held',
+        async fromLastMonth => {
+          const result = await budgetFor(fromLastMonth);
+          expect(result.toBudget).toBe(31250); // 5 x 62.50
+        },
+      );
 
-      it('does not count spare money as goal money', async () => {
-        // Upstream subtracted the whole balance, so money held for anything
-        // else made the goals look funded.
-        const result = await budgetFor(300000);
-        expect(result.toBudget).toBe(31250);
-      });
-
-      it('catches up a shortfall in one month', async () => {
+      it('catches up a shortfall in one month, split by rate', async () => {
         const result = await budgetFor(190000); // 100.00 short
         expect(result.toBudget).toBe(41250);
-      });
-
-      it('attributes the budget to each goal by its rate', async () => {
-        const result = await budgetFor(190000);
         for (const template of gifts) {
           expect(result.perTemplateNeed.get(template)).toBe(8250); // 62.50 + 20.00
         }
@@ -1092,23 +1085,12 @@ describe('CategoryTemplateContext', () => {
       return { budgeted, warnings: context.warnings };
     };
 
-    it('budgets the whole total when nothing else is in the category', async () => {
-      expect((await budget([total(1000)])).budgeted).toBe(100000);
-    });
-
-    it('budgets what the other lines leave, wherever it is written', async () => {
-      // Claude and AppleCare in Jon Fun Money: 1,000 less 43.68.
-      const { budgeted } = await budget([
-        total(1000),
-        line(22.11),
-        line(21.57),
-      ]);
-      expect(budgeted).toBe(100000);
-    });
-
-    it('counts lines at a later priority before it', async () => {
-      const { budgeted } = await budget([total(1000, 0), line(300, 2)]);
-      expect(budgeted).toBe(100000);
+    it.each([
+      ['alone', [total(1000)]],
+      ['beside other lines', [total(1000), line(22.11), line(21.57)]],
+      ['before a later priority', [total(1000, 0), line(300, 2)]],
+    ])('budgets the whole total %s', async (_, templates) => {
+      expect((await budget(templates)).budgeted).toBe(100000);
     });
 
     it('adds nothing and warns when the other lines cost more', async () => {

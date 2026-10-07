@@ -366,11 +366,9 @@ export function BudgetTable({
   const [budgetType = 'envelope'] = useSyncedPref('budgetType');
 
   const schedulesQuery = useMemo(() => q('schedules').select('*'), []);
-  // Mobile has no MonthsContext -- one month is on screen, so it is passed in.
-  const reservationMonths = useMemo(() => [month], [month]);
 
   return (
-    <ReservationsProvider months={reservationMonths}>
+    <ReservationsProvider months={[month]}>
       <BudgetTableHeader
         month={month}
         show3Columns={show3Columns}

@@ -80,7 +80,8 @@ linked to the schedule. If the bill posts and nothing links, the claim does not
 read as spent, but it still moves on to the next date.
 
 A claim always holds its full amount. If the balance cannot cover every claim,
-the difference shows once, as a negative spare.
+the difference shows once, as a negative spare. The breakdown calls it
+**Overspent**.
 
 ## Through the API
 
@@ -89,8 +90,8 @@ on them, and you do not have to read the budget yourself:
 
 ```js
 const rows = await api.getReservations('2026-09');
-// [{ categoryId, categoryName, balance, reserved, committed, spare,
-//    accrued, shortfall, target, status, claims: [...] }]
+// [{ categoryId, categoryName, balance, reserved, spare, accrued,
+//    shortfall, target, status, claims: [...] }]
 ```
 
 All amounts are whole cents. Actual calculates the values on each call and does

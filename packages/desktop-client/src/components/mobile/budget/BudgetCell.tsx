@@ -61,7 +61,6 @@ export function BudgetCell<
     'mobile.showBudgetedPercent',
   );
   const totalBudgeted = useTotalBudgeted();
-  // The tracking budget has its own totals, so it keeps the amount.
   const showPercent = showBudgetedPercent && budgetType === 'envelope';
 
   const onSaveNotes = useCallback(async (id: string, notes: string) => {

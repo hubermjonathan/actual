@@ -38,11 +38,6 @@ export type ByTemplate = {
   annual?: boolean;
   repeat?: number;
   from?: string;
-  /**
-   * What this target is for, for example `#template 750 by 2026-12 repeat
-   * every 12 months [christmas]`. This is a note only. It names the claim in
-   * the reservations breakdown. It does not change the budgeted amount.
-   */
   label?: string;
 } & BaseTemplateWithPriority;
 
@@ -53,17 +48,12 @@ export type SpendTemplate = {
   from: string;
   annual?: boolean;
   repeat?: number;
-  /** Shares the `by` syntax, so it can carry a label. Unused. */
   label?: string;
 } & BaseTemplateWithPriority;
 
 export type SimpleTemplate = {
   type: 'simple';
   monthly?: number;
-  /**
-   * What this amount is for, for example `#template 1000 [groceries]`. A name
-   * only: it does not change the budgeted amount, and nothing reads it.
-   */
   label?: string;
   limit?: {
     amount: number;
@@ -78,10 +68,6 @@ export type ScheduleTemplate = {
   name?: string;
   scheduleId?: string;
   full?: boolean;
-  /**
-   * Contribute the same amount every month instead of letting the category's
-   * balance decide. Written `[fixed]`.
-   */
   fixed?: boolean;
   adjustment?: number;
   adjustmentType?: 'percent' | 'fixed';
@@ -112,15 +98,9 @@ export type RemainderTemplate = {
   priority: null;
 } & BaseTemplate;
 
-/**
- * `#template total 1000 [fun money]`: budget the category to 1000 in all,
- * counting every other line in it first. It adds 1000 minus what the other
- * lines budget, and never less than 0.
- */
 export type TotalTemplate = {
   type: 'total';
   amount: number;
-  /** A name only. */
   label?: string;
 } & BaseTemplateWithPriority;
 

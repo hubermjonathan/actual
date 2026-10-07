@@ -1,24 +1,25 @@
 // @ts-strict-ignore
 
+import { aqlQuery } from '#server/aql';
 import * as db from '#server/db';
-import { fromDateRepr, toDateRepr } from '#server/models';
+import { toDateRepr } from '#server/models';
 import { collectFormulasFromActions } from '#server/rules/balanceOfFormula';
 import { getRuleForSchedule } from '#server/schedules/app';
 import { prefetchBalanceOfForTransaction } from '#server/transactions/transaction-rules';
 import type { Currency } from '#shared/currencies';
 import * as monthUtils from '#shared/months';
+import { q } from '#shared/query';
 import {
   extractScheduleConds,
   getDateWithSkippedWeekend,
   getNextDate,
-  getOccurrenceOnOrAfter,
 } from '#shared/schedules';
 import { amountToInteger } from '#shared/util';
 import type { CategoryEntity, TransactionEntity } from '#types/models';
 import type { ScheduleTemplate, Template } from '#types/models/templates';
 
 import { getSheetValue, isTrackingBudget } from './actions';
-import { accruedToDate } from './reservations';
+import { getOccurrenceOnOrAfter, heldAtMonthStart } from './reservations';
 import type { ReservationClaim } from './reservations';
 
 type ScheduleTemplateTarget = {
@@ -27,6 +28,7 @@ type ScheduleTemplateTarget = {
   name: string;
   target: number;
   next_date_string: string;
+  dateConditions: ReturnType<typeof extractScheduleConds>['date'];
   target_interval: number;
   target_frequency: string | undefined;
   num_months: number;
@@ -58,8 +60,7 @@ async function createScheduleList(
         : 'SELECT id, name, completed FROM schedules WHERE TRIM(name) = ? AND tombstone = 0',
       [template.scheduleId ?? template.name],
     );
-    // Deleting a schedule leaves its template line in the note, so the lookup
-    // can find nothing. Report it and carry on, as a past schedule does.
+    // Deleting a schedule leaves its template line in the note.
     if (!schedule) {
       errors.push(
         `Schedule ${template.name ?? template.scheduleId} does not exist.`,
@@ -164,6 +165,7 @@ async function createScheduleList(
         scheduleId: sid,
         target,
         next_date_string,
+        dateConditions,
         target_interval,
         target_frequency,
         num_months,
@@ -310,26 +312,6 @@ function getMonthlyBaseContribution(schedule: ScheduleTemplateTarget) {
   }
 }
 
-/**
- * What a claim held at the end of last month, at its flat monthly rate.
- *
- * Used to keep a `[fixed]` claim's savings out of the pooled allocator's reach:
- * the pooled claims must not be credited with money that is already spoken for.
- *
- * Last month, not this one: `num_months` counts from the budget month, and
- * this month's contribution is what the template is about to add. Counting it
- * as held already made the pool look short by one month of every fixed claim,
- * and the shortfall came back as a budget of a fraction of a cent - 389.1166...
- * for `Wants (Reserved)` in October 2026, where 305.48 was right.
- */
-function getHeldAtMonthStart(schedule: ScheduleTemplateTarget) {
-  return accruedToDate({
-    target: schedule.target,
-    monthlyRate: getMonthlyBaseContribution(schedule),
-    monthsRemaining: schedule.num_months + 1,
-  });
-}
-
 function getSinkingBaseContributionTotal(t: ScheduleTemplateTarget[]) {
   let total = 0;
   for (const schedule of t) total += getMonthlyBaseContribution(schedule);
@@ -345,12 +327,7 @@ function getSinkingTotal(t: ScheduleTemplateTarget[]) {
   return total;
 }
 
-/**
- * A transaction linked to the schedule, dated in the budget month no more than
- * a week before the occurrence - the signal `getStatus` uses to call a
- * schedule paid. The week keeps out last month's bill paid late: Internet's
- * 9/30 bill linked on 10/02 must not mark the 10/30 bill paid.
- */
+// The same signal `getStatus` uses to call a schedule paid.
 async function hasLinkedPayment(
   scheduleId: string,
   occurrence: string,
@@ -369,42 +346,16 @@ async function hasLinkedPayment(
   return !!linked;
 }
 
-/**
- * The stored `next_date` is past the occurrence: the schedule advanced, which
- * only a linked payment does, even one dated last month.
- */
 async function hasAdvancedPast(
   scheduleId: string,
   occurrence: string,
 ): Promise<boolean> {
-  // `local_next_date` only holds the answer while its timestamp still matches
-  // `base_next_date_ts`. Once the schedule's date is changed, the base date is
-  // the one that counts. Same rule as `v_schedules.next_date` in
-  // aql/schema/index.ts.
-  const stored = await db.first<{ next_date: number | null }>(
-    `SELECT CASE
-       WHEN local_next_date_ts = base_next_date_ts THEN local_next_date
-       ELSE base_next_date
-     END AS next_date
-     FROM schedules_next_date WHERE schedule_id = ?`,
-    [scheduleId],
+  const { data } = await aqlQuery(
+    q('schedules').filter({ id: scheduleId }).select('next_date'),
   );
-  return (
-    stored?.next_date != null && fromDateRepr(stored.next_date) > occurrence
-  );
+  return data[0]?.next_date != null && data[0].next_date > occurrence;
 }
 
-/**
- * Build the reservation claims a category's schedule templates imply.
- *
- * This uses `createScheduleList` and `getMonthlyBaseContribution`. The rate a
- * claim collects at is therefore the same rate the budget adds each month. The
- * two cannot move apart.
- *
- * Claims funded in full in their due month (`#template schedule full X`, and
- * anything the engine treats that way) accrue all-or-nothing rather than pro
- * rata, which their rate of `target` per month expresses directly.
- */
 export async function getScheduleReservationClaims(
   template_lines: Template[],
   current_month: string,
@@ -421,43 +372,19 @@ export async function getScheduleReservationClaims(
     currency,
   );
 
-  // A claim needs two answers, and only one of them is about payment.
-  //
-  // - **When is the cost due?** From the recurrence rule, read as a calendar.
-  //   The schedule's stored `next_date` moves only when a transaction links to
-  //   it, so a failed link used to freeze the claim: it reserved the whole cost
-  //   in every later month and never cycled. The calendar cannot freeze.
-  // - **Was this occurrence already paid?** From a payment signal. A claim paid
-  //   earlier in the month must stop reserving against a balance the bill has
-  //   already taken, and read as spent rather than as 0.00.
-  //
-  // createScheduleList already drops completed schedules.
   const monthStart = monthUtils.firstDayOfMonth(current_month);
   const monthEnd = monthUtils.lastDayOfMonth(current_month);
   const claims: ReservationClaim[] = [];
   for (const c of t) {
-    const rule = await getRuleForSchedule(c.scheduleId);
-    const { date: dateConditions } = extractScheduleConds(
-      rule.serialize().conditions,
-    );
-    // The occurrence the rule gives for the month. Its `start` never runs
-    // behind its stored date, so a frozen schedule still lands here.
-    const ruleOccurrence =
-      getNextDate(dateConditions, monthUtils.parseDate(monthStart)) ??
-      c.next_date_string;
-    // Advancing a schedule rewrites its rule's `start` to the next
-    // occurrence, which erases the one just paid: Rent paid on 10/01 has a
-    // rule that starts 11/01. Recover it from the calendar, but only trust it
-    // with a linked payment - a schedule that simply starts later has the
-    // same shape and nothing in the month.
+    const { dateConditions, next_date_string: ruleOccurrence } = c;
+    // Advancing a schedule rewrites its rule's `start`.
     const earlier = getOccurrenceOnOrAfter(dateConditions, monthStart);
     const paidEarlier =
       !!earlier &&
-      !!ruleOccurrence &&
       earlier < ruleOccurrence &&
       (await hasLinkedPayment(c.scheduleId, earlier, monthStart, monthEnd));
 
-    let occurrence: string | null;
+    let occurrence: string;
     let paid: boolean;
     let nextDate: string;
     if (paidEarlier) {
@@ -467,21 +394,18 @@ export async function getScheduleReservationClaims(
     } else {
       occurrence = ruleOccurrence;
       paid =
-        !!occurrence &&
-        ((await hasLinkedPayment(
+        (await hasLinkedPayment(
           c.scheduleId,
           occurrence,
           monthStart,
           monthEnd,
-        )) ||
-          (await hasAdvancedPast(c.scheduleId, occurrence)));
-      nextDate =
-        paid && occurrence
-          ? (getOccurrenceOnOrAfter(
-              dateConditions,
-              monthUtils.addDays(occurrence, 1),
-            ) ?? occurrence)
-          : occurrence;
+        )) || (await hasAdvancedPast(c.scheduleId, occurrence));
+      nextDate = paid
+        ? (getOccurrenceOnOrAfter(
+            dateConditions,
+            monthUtils.addDays(occurrence, 1),
+          ) ?? occurrence)
+        : occurrence;
     }
     const monthsRemaining = monthUtils.differenceInCalendarMonths(
       nextDate,
@@ -489,7 +413,6 @@ export async function getScheduleReservationClaims(
     );
     const settledThisMonth =
       paid &&
-      !!occurrence &&
       monthUtils.getMonth(occurrence) === monthUtils.getMonth(current_month);
 
     claims.push({
@@ -554,17 +477,21 @@ export async function runSchedule(
     .filter(c => !isPayMonthOf(c))
     .sort((a, b) => a.next_date_string.localeCompare(b.next_date_string));
 
-  // A `[fixed]` claim adds the same amount each month. The category balance
-  // does not change it. We keep these claims out of the shared pool. We keep
-  // out both their monthly amount and the money they have already saved. The
-  // other claims must not count that money.
   const t_fixed = t_allSinking.filter(c => c.template.fixed);
   const t_sinking = t_allSinking.filter(c => !c.template.fixed);
   const fixedContribution = getSinkingBaseContributionTotal(t_fixed);
-  // Whole cents: the pool is subtracted from a budget amount, which must be
-  // an integer.
+  // Budget amounts must be whole cents.
   const fixedHeld = Math.round(
-    t_fixed.reduce((sum, c) => sum + getHeldAtMonthStart(c), 0),
+    t_fixed.reduce(
+      (sum, c) =>
+        sum +
+        heldAtMonthStart({
+          target: c.target,
+          monthlyRate: getMonthlyBaseContribution(c),
+          monthsRemaining: c.num_months,
+        }),
+      0,
+    ),
   );
   const poolBalance = last_month_balance - fixedHeld;
 

@@ -7,7 +7,7 @@ import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
-import type { CategoryReservationsResult } from '@actual-app/core/server/budget/goal-template';
+import type { CategoryReservationsResult } from '@actual-app/core/server/budget/get-reservations';
 import type { CategoryEntity } from '@actual-app/core/types/models';
 import { css, cx } from '@emotion/css';
 import { AutoTextSize } from 'auto-text-size';
@@ -27,11 +27,6 @@ type BalanceCellProps = {
     'leftover' | 'sum-amount'
   >;
   category: CategoryEntity;
-  /**
-   * How the balance divides up. Desktop passes this too -- without it the phone
-   * shows the raw balance and the two platforms disagree about the same
-   * category.
-   */
   reservations?: CategoryReservationsResult | null;
   show3Columns?: boolean;
   onPress?: () => void;

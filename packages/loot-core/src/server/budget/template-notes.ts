@@ -195,7 +195,6 @@ function templateToLine(
       return result.trim();
     }
     case 'total': {
-      // total syntax: #template[-prio] total N [label]
       let result = `${prefix} total ${template.amount}`;
       if (template.label) {
         result += ` [${template.label}]`;

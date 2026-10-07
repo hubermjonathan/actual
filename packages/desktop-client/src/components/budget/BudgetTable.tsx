@@ -290,30 +290,30 @@ export function BudgetTable(props: BudgetTableProps) {
         monthBounds={monthBounds}
         type={type}
       >
-        <ReservationsProvider>
-          <BudgetTotals
-            toggleHiddenCategories={toggleHiddenCategories}
-            expandAllCategories={expandAllCategories}
-            collapseAllCategories={collapseAllCategories}
-          />
+        <BudgetTotals
+          toggleHiddenCategories={toggleHiddenCategories}
+          expandAllCategories={expandAllCategories}
+          collapseAllCategories={collapseAllCategories}
+        />
+        <View
+          ref={scrollContainerRef}
+          data-testid="budget-table-scroll-container"
+          style={{
+            overflowY: 'scroll',
+            overflowAnchor: 'none',
+            flex: 1,
+            paddingLeft: 5,
+            paddingRight: 5,
+          }}
+        >
           <View
-            ref={scrollContainerRef}
-            data-testid="budget-table-scroll-container"
             style={{
-              overflowY: 'scroll',
-              overflowAnchor: 'none',
-              flex: 1,
-              paddingLeft: 5,
-              paddingRight: 5,
+              flexShrink: 0,
             }}
+            onKeyDown={onKeyDown}
           >
-            <View
-              style={{
-                flexShrink: 0,
-              }}
-              onKeyDown={onKeyDown}
-            >
-              <SchedulesProvider query={schedulesQuery}>
+            <SchedulesProvider query={schedulesQuery}>
+              <ReservationsProvider>
                 <BudgetCategories
                   categoryGroups={categoryGroups}
                   editingCell={editing}
@@ -330,10 +330,10 @@ export function BudgetTable(props: BudgetTableProps) {
                   onApplyBudgetTemplatesInGroup={onApplyBudgetTemplatesInGroup}
                   onSortCategories={onSortCategories}
                 />
-              </SchedulesProvider>
-            </View>
+              </ReservationsProvider>
+            </SchedulesProvider>
           </View>
-        </ReservationsProvider>
+        </View>
       </MonthsProvider>
     </View>
   );

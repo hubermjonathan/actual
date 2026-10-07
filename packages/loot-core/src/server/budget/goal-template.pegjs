@@ -6,20 +6,21 @@ expr
   / template: template _ amount: amount _ repeatEvery _ period: periodCount _ starting _ starting: date limit: limit?
     { return { type: 'periodic', amount, period, starting, limit, priority: template.priority, directive: template.directive }}
   / template: template _ amount: amount _ by _ month: month from: spendFrom? repeat: (_ repeatEvery _ repeat)? label: label?
-    { const t = {
+    { return {
       type: from ? 'spend' : 'by',
       amount,
       month,
       ...(repeat ? repeat[3] : {}),
       from,
-      priority: template.priority, directive: template.directive
-    }; if (label != null) t.label = label; return t }
+      priority: template.priority, directive: template.directive,
+      ...(label != null && { label })
+    }}
   / template: template _ 'total'i _ amount: amount label: label?
-    { const t = { type: 'total', amount, priority: template.priority, directive: template.directive }; if (label != null) t.label = label; return t }
+    { return { type: 'total', amount, priority: template.priority, directive: template.directive, ...(label != null && { label }) }}
   / template: template _ monthly: amount limit: limit? label: label?
-    { const t = { type: 'simple', monthly, limit, priority: template.priority, directive: template.directive }; if (label != null) t.label = label; return t }
+    { return { type: 'simple', monthly, limit, priority: template.priority, directive: template.directive, ...(label != null && { label }) }}
   / template: template _ limit: limit label: label?
-    { const t = { type: 'simple', monthly: null, limit, priority: template.priority, directive: template.directive }; if (label != null) t.label = label; return t }
+    { return { type: 'simple', monthly: null, limit, priority: template.priority, directive: template.directive, ...(label != null && { label }) }}
   / template: template _ schedule:schedule _ full:full? name:rawScheduleName modifiers:modifiers?
     { return { type: 'schedule', name: name.trim(), priority: template.priority, directive: template.directive, full, fixed: modifiers?.fixed, adjustment: modifiers?.adjustment, adjustmentType: modifiers?.adjustmentType  }}
   / template: template _ remainder: remainder limit: limit?
@@ -49,7 +50,6 @@ repeat 'repeat interval'
   / 'year'i { return { annual: true }}
   / years: positive _ 'years'i { return { annual: true, repeat: +years }}
 
-// Names what an amount is for, e.g. `#template 1000 [groceries]`.
 label = _ '[' text:$([^\]\r\n]+) ']' { return text.trim() }
 
 limit =  _? upTo _ amount: amount _ 'per week starting'i _ start:date _? hold:hold?

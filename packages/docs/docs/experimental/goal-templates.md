@@ -121,7 +121,6 @@ Templates can be given a priority flag to change the order that the templates ge
 - Template application order is based on the database order, not the view order. To guarantee a specific fill order use separate priorities for each category.
 - If you have multiple `schedule` or `by` template lines in a single category, they will be forced to match the same priority level as the line run first.
 - It is recommended to use the "overwrite with budget template" option when applying templates if you use priorities.
-
   - **Expected budgeted amount is 200**
     **Expected maximum category balance is 200**
 
@@ -499,10 +498,11 @@ of the category is to hold money that is not yet complete. The shared pot rule
 therefore applies in almost every month, and the amount changes as you pay bills
 and the balance moves.
 
-Actual keeps a fixed schedule out of that pot. It keeps out both its monthly
-amount and the money it has saved. This is necessary. Without it, the other
-schedules would count money that is already promised, and they would budget too
-little.
+Actual keeps a fixed schedule out of that pot. It budgets the monthly amount of
+the fixed schedule separately. It also takes out of the pot the money that the
+fixed schedule should hold at the start of the month, at its flat rate, rounded
+to the cent. Without this, the other schedules would count money that is already
+promised, and they would budget too little.
 
 :::note
 A fixed schedule continues to add money after it has all of its money.

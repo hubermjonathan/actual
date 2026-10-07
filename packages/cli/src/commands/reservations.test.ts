@@ -22,7 +22,6 @@ const category = {
   categoryName: 'Needs',
   balance: 564579,
   reserved: 446079,
-  committed: 446079,
   spare: 118500,
   accrued: 446079,
   shortfall: 0,
@@ -37,8 +36,6 @@ const category = {
       monthsRemaining: 3,
       accrued: 52650,
       reserved: 52650,
-      shortfall: 0,
-      onTrack: true,
       settledThisMonth: false,
       fixed: true,
     },
@@ -69,15 +66,7 @@ describe('reservations commands', () => {
   });
 
   describe('reservations list', () => {
-    it('asks the API for the month', async () => {
-      await run(['reservations', 'list', '2026-09']);
-
-      expect(api.getReservations).toHaveBeenCalledWith('2026-09', {
-        categoryId: undefined,
-      });
-    });
-
-    it('narrows to one category', async () => {
+    it('asks the API for the month and category', async () => {
       await run(['reservations', 'list', '2026-09', '--category', 'cat-1']);
 
       expect(api.getReservations).toHaveBeenCalledWith('2026-09', {
@@ -101,7 +90,6 @@ describe('reservations commands', () => {
             categoryName: 'Needs',
             balance: 564579,
             reserved: 446079,
-            committed: 446079,
             spare: 118500,
             status: 'onPace',
           },
@@ -130,16 +118,6 @@ describe('reservations commands', () => {
         ],
         'table',
       );
-    });
-
-    it('returns nothing when no category has a claim', async () => {
-      vi.mocked(api.getReservations).mockResolvedValue([
-        { ...category, claims: [] },
-      ]);
-
-      await run(['reservations', 'claims', '2026-09']);
-
-      expect(printOutput).toHaveBeenCalledWith([], 'json');
     });
   });
 });

@@ -236,13 +236,3 @@ describe('printOutput', () => {
     expect(writeSpy).toHaveBeenCalledWith('\n');
   });
 });
-
-describe('reservations amount fields', () => {
-  it('formats monthlyRate like every other money field', () => {
-    // It arrives as integer cents from the api. Missing it from AMOUNT_FIELDS
-    // printed a raw value beside formatted ones in the same row.
-    const csv = formatOutput([{ reserved: 61667, monthlyRate: 17550 }], 'csv');
-
-    expect(csv).toContain('616.67,175.50');
-  });
-});

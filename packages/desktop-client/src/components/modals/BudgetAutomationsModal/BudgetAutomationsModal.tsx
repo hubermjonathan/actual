@@ -76,7 +76,6 @@ export function BudgetAutomationsModal({
 
   const hasErrorTemplate =
     parsedTemplates?.some(t => t.type === 'error') ?? false;
-  // A `total` line has no automation editor; leave such a note to the note.
   const hasTotalTemplate =
     parsedTemplates?.some(t => t.type === 'total') ?? false;
   const hasUnsupportedDirective = hasErrorTemplate || hasTotalTemplate;

@@ -378,12 +378,8 @@ describe('API CRUD operations', () => {
       group_id: groupId,
     });
 
-    // `[test-allowance]` is a name only. The line budgets the category; with no
-    // claim, every cent of the balance is spare and there is no status.
     await api.updateNote(categoryId, '#template 100 [test-allowance]');
-    // Reservations read the templates stored on the category, which the app
-    // refreshes when a note is saved. Nothing does that for a note written
-    // through the API, so do it here as the app would.
+    // The app stores a note's templates when it saves the note; the API does not.
     await api.internal?.send('budget/store-note-templates', [categoryId]);
     await api.setBudgetAmount(month, categoryId, 10000);
 
@@ -394,12 +390,10 @@ describe('API CRUD operations', () => {
       categoryName: 'test-reservations',
       balance: 10000,
       reserved: 0,
-      committed: 0,
       spare: 10000,
       status: null,
       claims: [],
     });
-    expect(category).not.toHaveProperty('allowances');
   });
 
   // apis: getReservations
@@ -422,7 +416,6 @@ describe('API CRUD operations', () => {
     expect(one[0]).toMatchObject({
       categoryId,
       balance: 5000,
-      // Nothing claims it, so there is nothing to be ahead or behind of.
       spare: 5000,
       status: null,
     });

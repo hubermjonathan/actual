@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import type { CSSProperties } from 'react';
 import { Trans } from 'react-i18next';
 
@@ -36,18 +36,12 @@ type EnvelopeBalanceMenuModalProps = Extract<
   { name: 'envelope-balance-menu' }
 >['options'];
 
-/**
- * Modals render at the app root, outside the budget table's provider, so this
- * one carries its own -- and everything inside reads the same figures the
- * budget row shows.
- */
 export function EnvelopeBalanceMenuModal({
   month,
   ...props
 }: EnvelopeBalanceMenuModalProps) {
-  const months = useMemo(() => [month], [month]);
   return (
-    <ReservationsProvider months={months}>
+    <ReservationsProvider months={[month]}>
       <EnvelopeBalanceMenuModalInner {...props} month={month} />
     </ReservationsProvider>
   );
@@ -124,8 +118,6 @@ function EnvelopeBalanceMenuModalInner({
               )}
             </BalanceWithCarryover>
           </View>
-          {/* Touch has no hover, so what the desktop shows in a tooltip lives
-              here instead. */}
           {hasReservationDetail(reservations) && (
             <View
               style={{

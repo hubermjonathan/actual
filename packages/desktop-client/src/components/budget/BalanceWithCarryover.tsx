@@ -13,7 +13,7 @@ import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
-import type { CategoryReservationsResult } from '@actual-app/core/server/budget/goal-template';
+import type { CategoryReservationsResult } from '@actual-app/core/server/budget/get-reservations';
 import type { TransObjectLiteral } from '@actual-app/core/types/util';
 import { css } from '@emotion/css';
 
@@ -98,11 +98,6 @@ type BalanceWithCarryoverProps = Omit<
   longGoal: Binding<'envelope-budget' | 'tracking-budget', 'long-goal'>;
   isDisabled?: boolean;
   shouldInlineGoalStatus?: boolean;
-  /**
-   * How this category balance divides up. When you set this, the cell shows
-   * the amount left after the reserved part. That is the amount you can spend.
-   * The pointer-over panel shows the rest of the parts.
-   */
   reservations?: CategoryReservationsResult | null;
   CarryoverIndicator?: ComponentType<CarryoverIndicatorProps>;
   tooltipDisabled?: boolean;
@@ -162,8 +157,7 @@ export function BalanceWithCarryover({
       }),
     [getBalanceAmountStyle, isDisabled],
   );
-  // Only worth a hover when something actually claims the balance.
-  const showBreakdown = hasReservationDetail(reservations ?? null);
+  const showBreakdown = hasReservationDetail(reservations);
   const GoalStatusDisplay = useCallback(
     (balanceValue, type) => {
       return (
@@ -259,8 +253,6 @@ export function BalanceWithCarryover({
   return (
     <CellValue binding={balance} type="financial" {...props}>
       {({ type, name, value: rawBalance }) => {
-        // Goal colouring and the carryover indicator still read the true
-        // balance; only the displayed figure has reservations taken out.
         const balanceValue = rawBalance - (reservations?.reserved ?? 0);
         return (
           <>
@@ -280,7 +272,7 @@ export function BalanceWithCarryover({
                         />
                       )}
                       <ReservationsBreakdown
-                        reservations={reservations ?? null}
+                        reservations={reservations}
                         style={{ padding: 0 }}
                       />
                     </>

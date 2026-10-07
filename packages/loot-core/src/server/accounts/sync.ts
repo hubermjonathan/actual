@@ -627,8 +627,6 @@ export type ReconcileTransactionsOptions = MatchTransactionsOptions & {
 export type ReconcileTransactionsResult = {
   added: string[];
   updated: string[];
-  /** Pairs of transaction ids linked as transfers, newest side first. */
-  linkedTransfers?: Array<[string, string]>;
   updatedPreview: Array<{
     transaction: TransactionEntity;
     existing?: TransactionEntity;
@@ -697,12 +695,7 @@ export async function reconcileTransactions(
           existing.raw_synced_data ?? trans.raw_synced_data ?? null,
       };
 
-      // A pending charge often settles for a different amount (a tip, a
-      // released hold). Take the bank's amount, and the payload that carries
-      // it, so the stored copy does not hide the change. The payload is only
-      // replaced on a real change: some providers rewrite it on every sync.
-      // A split's children must add up to its total, so a new amount on a
-      // parent is left alone rather than divided by guesswork.
+      // Some providers rewrite raw_synced_data on every sync.
       const amountChanged =
         trans.amount != null && trans.amount !== existing.amount;
       if (amountChanged && existing.is_parent) {
@@ -801,17 +794,12 @@ export async function reconcileTransactions(
     t.sort_order ??= now - index * TRANSACTION_SORT_INCREMENT;
   });
 
-  let linkedTransfers: Array<[string, string]> = [];
-
   if (!isPreview) {
     await createNewPayees(payeesToCreate, [...added, ...updated]);
     await batchUpdateTransactions({ added, updated });
 
-    // Both halves of a transfer between two synced accounts import
-    // independently, as two unrelated transactions. Link the ones that are
-    // unambiguous.
     if (await shouldDetectTransfers()) {
-      linkedTransfers = await detectTransfers(added.map(trans => trans.id));
+      await detectTransfers(added.map(trans => trans.id));
     }
   }
 
@@ -828,7 +816,6 @@ export async function reconcileTransactions(
     added: added.map(trans => trans.id),
     updated: updated.map(trans => trans.id),
     updatedPreview,
-    linkedTransfers,
   };
 }
 

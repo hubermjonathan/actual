@@ -11,8 +11,7 @@ import { TransferMenu } from './TransferMenu';
 type BalanceMovementMenuProps = {
   categoryId: string;
   month: string;
-  /** Part of the balance owed to known future costs; cannot be transferred out. */
-  reserved?: number;
+  reserved: number;
   onBudgetAction: (month: string, action: string, arg?: unknown) => void;
   onClose: () => void;
 };
@@ -20,7 +19,7 @@ type BalanceMovementMenuProps = {
 export function BalanceMovementMenu({
   categoryId,
   month,
-  reserved = 0,
+  reserved,
   onBudgetAction,
   onClose,
 }: BalanceMovementMenuProps) {
@@ -28,8 +27,6 @@ export function BalanceMovementMenu({
 
   const catBalance =
     useEnvelopeSheetValue(envelopeBudget.catBalance(categoryId)) ?? 0;
-  // What the row displays, and the most a transfer may move.
-  const available = catBalance - reserved;
 
   const [menu, _setMenu] = useState('menu');
 
@@ -63,8 +60,8 @@ export function BalanceMovementMenu({
       {menu === 'transfer' && (
         <TransferMenu
           categoryId={categoryId}
-          initialAmount={available}
-          maxAmount={available}
+          initialAmount={catBalance}
+          maxAmount={catBalance - reserved}
           showToBeBudgeted
           onClose={onClose}
           onSubmit={(amount, toCategoryId) => {

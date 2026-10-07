@@ -240,15 +240,6 @@ export const objects = {
       description: <span>Owed to a future cost. Should not be spent yet.</span>,
     },
     {
-      name: 'committed',
-      type: types.amount,
-      description: (
-        <span>
-          Equal to <code>reserved</code>.
-        </span>
-      ),
-    },
-    {
       name: 'spare',
       type: types.amount,
       description: (
@@ -270,8 +261,8 @@ export const objects = {
       type: types.amount,
       description: (
         <span>
-          <code>accrued - reserved</code>. This is the amount the category is
-          behind by.
+          <code>reserved - balance</code> when the balance cannot cover every
+          claim, otherwise 0.
         </span>
       ),
     },
@@ -298,7 +289,12 @@ export const objects = {
     {
       name: 'name',
       type: 'string',
-      description: <span>The schedule this claim tracks.</span>,
+      description: (
+        <span>
+          The schedule this claim tracks, or the label of a repeating By
+          template.
+        </span>
+      ),
     },
     { name: 'target', type: types.amount },
     {
@@ -318,20 +314,25 @@ export const objects = {
       type: types.amount,
       description: (
         <span>
-          What the balance covers. Never more than <code>accrued</code>.
+          Equal to <code>accrued</code>. A claim always holds its full amount.
         </span>
       ),
     },
-    { name: 'shortfall', type: types.amount },
-    { name: 'onTrack', type: 'bool' },
     {
       name: 'fixed',
       type: 'bool',
       description: (
         <span>
-          Written <code>[fixed]</code>: accrues at a flat rate rather than
-          sharing the category&apos;s pot.
+          Written <code>[fixed]</code>: the template budgets the same amount
+          each month.
         </span>
+      ),
+    },
+    {
+      name: 'settledThisMonth',
+      type: 'bool',
+      description: (
+        <span>The bill was paid this month. The app shows it as spent.</span>
       ),
     },
   ],
