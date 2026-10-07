@@ -10,13 +10,6 @@ import type { CategoryReservationsResult } from '@actual-app/core/server/budget/
 
 import { useFormat } from '#hooks/useFormat';
 
-/**
- * Whether there is a breakdown worth showing.
- *
- * Gate on whether the category *has* claims, not on whether they hold anything
- * now. A claim that accrues nothing this month is still worth seeing, and
- * hiding it makes "paid" look identical to "there is none".
- */
 export function hasReservationDetail(
   r: CategoryReservationsResult | null,
 ): r is CategoryReservationsResult {
@@ -28,12 +21,6 @@ export type ReservationsBreakdownProps = {
   style?: CSSProperties;
 };
 
-/**
- * How a category balance divides up.
- *
- * `Reserved` is owed to a future cost. Do not spend it yet. The amount that is
- * left is spare.
- */
 export function ReservationsBreakdown({
   reservations,
   style,
@@ -60,22 +47,12 @@ export function ReservationsBreakdown({
         rightStyle={styles.tnum}
       />
       {[...reservations.claims]
-        // Claims accruing nothing this month are still claims. A monthly
-        // subscription funds in the month it is due, so it reads 0 until
-        // then - and a category that hides it looks like it has no
-        // subscriptions at all. Sort those to the bottom, in due order.
         .sort(
           (a, b) =>
             b.accrued - a.accrued || a.nextDate.localeCompare(b.nextDate),
         )
         .map(c => (
           <View key={c.name} style={{ paddingLeft: 12, opacity: 0.75 }}>
-            {/*
-              A claim whose bill was paid this month accrues nothing,
-              exactly like one that is not due yet. Saying which is which is
-              what makes a closed month readable: otherwise every
-              reservation that worked looks as though it never existed.
-            */}
             <AlignedText
               left={
                 c.settledThisMonth
@@ -102,11 +79,6 @@ export function ReservationsBreakdown({
           paddingTop: 6,
         }}
       >
-        {/*
-          A negative spare is an overspend, not a small spare. Claims keep
-          their full accrual, so this is the one place the category says it
-          cannot cover everything - name it for what it is.
-        */}
         <AlignedText
           left={reservations.spare < 0 ? t('Overspent') : t('Spare')}
           right={format(Math.abs(reservations.spare), 'financial')}

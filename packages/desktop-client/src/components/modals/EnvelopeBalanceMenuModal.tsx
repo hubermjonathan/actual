@@ -36,11 +36,6 @@ type EnvelopeBalanceMenuModalProps = Extract<
   { name: 'envelope-balance-menu' }
 >['options'];
 
-/**
- * Modals render at the app root, outside the budget table's provider, so this
- * one carries its own -- and everything inside reads the same figures the
- * budget row shows.
- */
 export function EnvelopeBalanceMenuModal({
   month,
   ...props
@@ -123,8 +118,6 @@ function EnvelopeBalanceMenuModalInner({
               )}
             </BalanceWithCarryover>
           </View>
-          {/* Touch has no hover, so what the desktop shows in a tooltip lives
-              here instead. */}
           {hasReservationDetail(reservations) && (
             <View
               style={{

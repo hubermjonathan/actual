@@ -566,10 +566,6 @@ type GroupBalanceProps = {
   month: string;
 };
 
-/**
- * Group balance with its reservations taken out, so a group row sums the same
- * figures its category rows show.
- */
 function GroupBalanceLessReserved({ group, month }: GroupBalanceProps) {
   const format = useFormat();
   const balance = useEnvelopeSheetValue(envelopeBudget.groupBalance(group.id));

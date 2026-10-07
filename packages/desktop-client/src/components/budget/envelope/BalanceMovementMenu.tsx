@@ -11,7 +11,6 @@ import { TransferMenu } from './TransferMenu';
 type BalanceMovementMenuProps = {
   categoryId: string;
   month: string;
-  /** Part of the balance owed to known future costs; cannot be transferred out. */
   reserved: number;
   onBudgetAction: (month: string, action: string, arg?: unknown) => void;
   onClose: () => void;

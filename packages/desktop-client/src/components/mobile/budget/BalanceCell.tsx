@@ -27,11 +27,6 @@ type BalanceCellProps = {
     'leftover' | 'sum-amount'
   >;
   category: CategoryEntity;
-  /**
-   * How the balance divides up. Desktop passes this too -- without it the phone
-   * shows the raw balance and the two platforms disagree about the same
-   * category.
-   */
   reservations?: CategoryReservationsResult | null;
   show3Columns?: boolean;
   onPress?: () => void;

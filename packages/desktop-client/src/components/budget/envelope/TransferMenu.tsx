@@ -19,10 +19,6 @@ import { useCategories } from '#hooks/useCategories';
 type TransferMenuProps = {
   categoryId?: CategoryEntity['id'];
   initialAmount?: IntegerAmount | null;
-  /**
-   * Largest amount that may be moved out. Set when part of the balance is
-   * reserved for a known future cost, so a transfer cannot quietly spend it.
-   */
   maxAmount?: IntegerAmount | null;
   showToBeBudgeted?: boolean;
   onSubmit: (amount: IntegerAmount, categoryId: CategoryEntity['id']) => void;

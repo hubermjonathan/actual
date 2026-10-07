@@ -26,25 +26,9 @@ const ReservationsContext = createContext<Map<string, ReservationsByCategory>>(
 
 type ReservationsProviderProps = {
   children: ReactNode;
-  /**
-   * The months to load. The default is the visible months from
-   * `MonthsContext`. Mobile has no `MonthsContext`. It shows one month and
-   * gives that month directly.
-   */
   months?: string[];
 };
 
-/**
- * Loads reserved/spare figures for every visible month.
- *
- * Fetched per month rather than per category: a budget with fifty categories
- * across three months would otherwise issue a hundred and fifty requests to
- * render one screen.
- *
- * The server calculates these values on each call, so they follow a change in
- * the balance and there is no cache to clear. The cost is one more request when
- * the visible months change.
- */
 export function ReservationsProvider({
   children,
   months: explicitMonths,
@@ -68,7 +52,6 @@ export function ReservationsProvider({
       months.map(month =>
         send('budget/get-reservations', { month })
           .then(rows => [month, rows] as [string, CategoryReservationsResult[]])
-          // One month failing must not blank the whole table.
           .catch(() => [month, []] as [string, CategoryReservationsResult[]]),
       ),
     ).then(entries => {
@@ -86,7 +69,6 @@ export function ReservationsProvider({
     return () => {
       mounted = false;
     };
-    // months is rebuilt each render; monthsKey keeps this stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthsKey, isGoalTemplatesEnabled]);
 
@@ -97,7 +79,6 @@ export function ReservationsProvider({
   );
 }
 
-/** Reserved/spare for one category in one month, or null if it has none. */
 export function useCategoryReservations(
   month: string,
   categoryId: CategoryEntity['id'],
@@ -109,7 +90,6 @@ export function useCategoryReservations(
   );
 }
 
-/** Reservations summed across the given categories, for group rows. */
 export function useReservedTotal(
   month: string,
   categoryIds: Array<CategoryEntity['id']>,
