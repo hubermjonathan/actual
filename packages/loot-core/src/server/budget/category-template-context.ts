@@ -28,7 +28,11 @@ import {
   getSheetValue,
   isTrackingBudget,
 } from './actions';
-import { accruedToDate, getByReservationClaims } from './reservations';
+import {
+  accruedToDate,
+  getByReservationClaims,
+  heldAtMonthStart,
+} from './reservations';
 import type { ReservationClaim } from './reservations';
 import { getScheduleReservationClaims, runSchedule } from './schedule-template';
 import { getActiveSchedules } from './statements';
@@ -533,10 +537,7 @@ export class CategoryTemplateContext {
       this.currency.decimalPlaces,
     );
     const neededAtStart = Math.round(
-      claims.reduce(
-        (sum, c) => sum + Math.max(0, accruedToDate(c) - c.monthlyRate),
-        0,
-      ),
+      claims.reduce((sum, c) => sum + heldAtMonthStart(c), 0),
     );
 
     const scheduleTemplates = this.templates.filter(

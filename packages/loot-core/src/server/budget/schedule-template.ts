@@ -20,7 +20,7 @@ import type { CategoryEntity, TransactionEntity } from '#types/models';
 import type { ScheduleTemplate, Template } from '#types/models/templates';
 
 import { getSheetValue, isTrackingBudget } from './actions';
-import { accruedToDate } from './reservations';
+import { heldAtMonthStart } from './reservations';
 import type { ReservationClaim } from './reservations';
 
 type ScheduleTemplateTarget = {
@@ -314,26 +314,6 @@ function getMonthlyBaseContribution(schedule: ScheduleTemplateTarget) {
   }
 }
 
-/**
- * What a claim held at the end of last month, at its flat monthly rate.
- *
- * Used to keep a `[fixed]` claim's savings out of the pooled allocator's reach:
- * the pooled claims must not be credited with money that is already spoken for.
- *
- * Last month, not this one: `num_months` counts from the budget month, and
- * this month's contribution is what the template is about to add. Counting it
- * as held already made the pool look short by one month of every fixed claim,
- * and the shortfall came back as a budget of a fraction of a cent - 389.1166...
- * for `Wants (Reserved)` in October 2026, where 305.48 was right.
- */
-function getHeldAtMonthStart(schedule: ScheduleTemplateTarget) {
-  return accruedToDate({
-    target: schedule.target,
-    monthlyRate: getMonthlyBaseContribution(schedule),
-    monthsRemaining: schedule.num_months + 1,
-  });
-}
-
 function getSinkingBaseContributionTotal(t: ScheduleTemplateTarget[]) {
   let total = 0;
   for (const schedule of t) total += getMonthlyBaseContribution(schedule);
@@ -544,7 +524,16 @@ export async function runSchedule(
   // Whole cents: the pool is subtracted from a budget amount, which must be
   // an integer.
   const fixedHeld = Math.round(
-    t_fixed.reduce((sum, c) => sum + getHeldAtMonthStart(c), 0),
+    t_fixed.reduce(
+      (sum, c) =>
+        sum +
+        heldAtMonthStart({
+          target: c.target,
+          monthlyRate: getMonthlyBaseContribution(c),
+          monthsRemaining: c.num_months,
+        }),
+      0,
+    ),
   );
   const poolBalance = last_month_balance - fixedHeld;
 

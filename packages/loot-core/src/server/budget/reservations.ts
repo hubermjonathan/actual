@@ -117,6 +117,15 @@ export function accruedToDate({
   return Math.min(target, Math.max(0, target - remaining));
 }
 
+export function heldAtMonthStart(
+  claim: Pick<ReservationClaim, 'target' | 'monthlyRate' | 'monthsRemaining'>,
+): number {
+  return accruedToDate({
+    ...claim,
+    monthsRemaining: claim.monthsRemaining + 1,
+  });
+}
+
 /**
  * Settle a category's balance against its claims.
  *
