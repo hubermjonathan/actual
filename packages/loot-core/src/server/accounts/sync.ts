@@ -627,8 +627,6 @@ export type ReconcileTransactionsOptions = MatchTransactionsOptions & {
 export type ReconcileTransactionsResult = {
   added: string[];
   updated: string[];
-  /** Pairs of transaction ids linked as transfers, newest side first. */
-  linkedTransfers?: Array<[string, string]>;
   updatedPreview: Array<{
     transaction: TransactionEntity;
     existing?: TransactionEntity;
@@ -801,8 +799,6 @@ export async function reconcileTransactions(
     t.sort_order ??= now - index * TRANSACTION_SORT_INCREMENT;
   });
 
-  let linkedTransfers: Array<[string, string]> = [];
-
   if (!isPreview) {
     await createNewPayees(payeesToCreate, [...added, ...updated]);
     await batchUpdateTransactions({ added, updated });
@@ -811,7 +807,7 @@ export async function reconcileTransactions(
     // independently, as two unrelated transactions. Link the ones that are
     // unambiguous.
     if (await shouldDetectTransfers()) {
-      linkedTransfers = await detectTransfers(added.map(trans => trans.id));
+      await detectTransfers(added.map(trans => trans.id));
     }
   }
 
@@ -828,7 +824,6 @@ export async function reconcileTransactions(
     added: added.map(trans => trans.id),
     updated: updated.map(trans => trans.id),
     updatedPreview,
-    linkedTransfers,
   };
 }
 

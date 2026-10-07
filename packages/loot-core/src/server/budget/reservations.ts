@@ -32,7 +32,7 @@ export type ReservationClaim = {
    * share the category pot. We report it so that a caller can tell the two
    * types apart.
    */
-  fixed?: boolean;
+  fixed: boolean;
   /**
    * The bill this claim tracks fell due in the budget month and has been paid.
    * The reservation did its job and was spent.
@@ -42,7 +42,7 @@ export type ReservationClaim = {
    * that is simply not due yet, and a closed month cannot be read back: every
    * reservation that worked has erased itself.
    */
-  settledThisMonth?: boolean;
+  settledThisMonth: boolean;
 };
 
 export type SettledClaim = ReservationClaim & {
@@ -57,9 +57,6 @@ export type SettledClaim = ReservationClaim & {
    * everything, the category reports it once, in `spare`.
    */
   reserved: number;
-  /** Always 0. Kept so callers do not have to change. A claim is never short. */
-  shortfall: number;
-  onTrack: boolean;
 };
 
 export type ReservationStatus = 'behind' | 'onPace' | 'ahead' | 'funded';
@@ -159,8 +156,6 @@ export function settleReservations(
     ...c.claim,
     accrued: Math.round(c.accrued),
     reserved: Math.round(c.reserved),
-    shortfall: 0,
-    onTrack: true,
   }));
 
   // `balance = reserved + spare` always holds.
@@ -246,6 +241,8 @@ export function getByReservationClaims(
       nextDate: `${targetMonth}-01`,
       monthlyRate: target / period,
       monthsRemaining,
+      fixed: false,
+      settledThisMonth: false,
     });
   }
 

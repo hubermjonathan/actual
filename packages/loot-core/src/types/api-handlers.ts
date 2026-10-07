@@ -6,13 +6,13 @@ import type {
   APIAccountGroupEntity,
   APICategoryEntity,
   APICategoryGroupEntity,
-  APICategoryReservationsEntity,
   APIFileEntity,
   APIPayeeEntity,
   APIRuleEntity,
   APIScheduleEntity,
   APITagEntity,
 } from '#server/api-models';
+import type { CategoryReservationsResult } from '#server/budget/goal-template';
 import type { BudgetFileHandlers } from '#server/budgetfiles/app';
 import type { batchUpdateTransactions } from '#server/transactions';
 import type { QueryState } from '#shared/query';
@@ -83,7 +83,7 @@ export type ApiHandlers = {
   'api/reservations': (arg: {
     month: string;
     categoryId?: string;
-  }) => Promise<APICategoryReservationsEntity[]>;
+  }) => Promise<CategoryReservationsResult[]>;
 
   'api/budget-set-amount': (arg: {
     month: string;

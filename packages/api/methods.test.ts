@@ -394,7 +394,6 @@ describe('API CRUD operations', () => {
       categoryName: 'test-reservations',
       balance: 10000,
       reserved: 0,
-      committed: 0,
       spare: 10000,
       status: null,
       claims: [],

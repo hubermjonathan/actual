@@ -34,7 +34,6 @@ import {
   categoryModel,
   payeeModel,
   remoteFileModel,
-  reservationsModel,
   ruleModel,
   scheduleModel,
   tagModel,
@@ -477,11 +476,7 @@ handlers['api/reservations'] = async function ({ month, categoryId }) {
   checkFileOpen();
   await validateMonth(month);
 
-  const reservations = await handlers['budget/get-reservations']({
-    month,
-    categoryId,
-  });
-  return reservations.map(r => reservationsModel.toExternal(r));
+  return handlers['budget/get-reservations']({ month, categoryId });
 };
 
 handlers['api/budget-set-amount'] = withMutation(async function ({

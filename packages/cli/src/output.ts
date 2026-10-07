@@ -12,14 +12,10 @@ const AMOUNT_FIELDS = new Set([
   'budgeted',
   'spent',
   'carryover',
-  // reservations
   'reserved',
-  'committed',
   'spare',
   'accrued',
-  'shortfall',
   'target',
-  'monthlyRate',
 ]);
 
 function isAmountValue(key: string, value: unknown): value is number {

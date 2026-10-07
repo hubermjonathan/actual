@@ -11,8 +11,6 @@ import type {
   TagEntity,
 } from '#types/models';
 
-import type { CategoryReservationsResult } from './budget/goal-template';
-import type { SettledClaim } from './budget/reservations';
 import type { RemoteFile } from './cloud-storage';
 import * as models from './models';
 
@@ -282,42 +280,5 @@ export const scheduleModel = {
     };
 
     return result;
-  },
-};
-
-/**
- * How one category balance divides up in a given month.
- *
- * These mirror the server types so the API follows them. The only differences
- * are `committed`, which the API sums for callers, and `fixed`, which is always
- * a boolean here. See `budget/reservations.ts` for what each field means, and
- * the API reference for the published documentation.
- *
- * All amounts are whole cents. Actual calculates the values on each call and
- * does not store them. `accrued` is rounded for each claim, so the per-claim
- * values can differ from the category total by one cent. The category fields
- * are the correct ones.
- */
-export type APIReservationClaimEntity = SettledClaim & { fixed: boolean };
-
-export type APICategoryReservationsEntity = Omit<
-  CategoryReservationsResult,
-  'claims'
-> & {
-  /** Equal to `reserved`: the part of the balance owed to future costs. */
-  committed: number;
-  claims: APIReservationClaimEntity[];
-};
-
-export const reservationsModel = {
-  toExternal({
-    claims,
-    ...rest
-  }: CategoryReservationsResult): APICategoryReservationsEntity {
-    return {
-      ...rest,
-      committed: rest.reserved,
-      claims: claims.map(claim => ({ ...claim, fixed: !!claim.fixed })),
-    };
   },
 };

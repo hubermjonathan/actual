@@ -21,6 +21,8 @@ const claim = (
   nextDate,
   monthlyRate: target / periodMonths,
   monthsRemaining,
+  fixed: false,
+  settledThisMonth: false,
 });
 
 describe('accruedToDate', () => {
@@ -63,7 +65,6 @@ describe('settleReservations', () => {
     expect(r.reserved).toBe(Math.round(89500 * (8 / 12))); // 8 of 12 elapsed
     expect(Number.isInteger(r.reserved)).toBe(true);
     expect(r.spare).toBe(100000 - r.reserved);
-    expect(r.claims[0].onTrack).toBe(true);
     expect(r.shortfall).toBe(0);
   });
 
@@ -79,7 +80,6 @@ describe('settleReservations', () => {
     expect(r.shortfall).toBe(30000);
     expect(r.status).toBe('behind');
     expect(r.claims[0].reserved).toBe(80000);
-    expect(r.claims[0].shortfall).toBe(0);
   });
 
   it('lists claims in due-date order and keeps every one of them whole', () => {
@@ -95,7 +95,6 @@ describe('settleReservations', () => {
     expect(r.claims[0].reserved).toBe(30000);
     expect(r.claims[1].name).toBe('Later');
     expect(r.claims[1].reserved).toBe(60000);
-    expect(r.claims.every(c => c.onTrack)).toBe(true);
     expect(r.spare).toBe(-60000);
     expect(r.shortfall).toBe(60000);
   });
@@ -163,7 +162,7 @@ describe('a claim settled during the month', () => {
       claim('Claude', 2211, 1, 1, '2026-10-11'),
     ]);
 
-    expect(r.claims[0].settledThisMonth).toBeUndefined();
+    expect(r.claims[0].settledThisMonth).toBe(false);
     expect(r.claims[0].accrued).toBe(0);
   });
 
