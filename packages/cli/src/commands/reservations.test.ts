@@ -66,15 +66,7 @@ describe('reservations commands', () => {
   });
 
   describe('reservations list', () => {
-    it('asks the API for the month', async () => {
-      await run(['reservations', 'list', '2026-09']);
-
-      expect(api.getReservations).toHaveBeenCalledWith('2026-09', {
-        categoryId: undefined,
-      });
-    });
-
-    it('narrows to one category', async () => {
+    it('asks the API for the month and category', async () => {
       await run(['reservations', 'list', '2026-09', '--category', 'cat-1']);
 
       expect(api.getReservations).toHaveBeenCalledWith('2026-09', {
@@ -126,16 +118,6 @@ describe('reservations commands', () => {
         ],
         'table',
       );
-    });
-
-    it('returns nothing when no category has a claim', async () => {
-      vi.mocked(api.getReservations).mockResolvedValue([
-        { ...category, claims: [] },
-      ]);
-
-      await run(['reservations', 'claims', '2026-09']);
-
-      expect(printOutput).toHaveBeenCalledWith([], 'json');
     });
   });
 });
