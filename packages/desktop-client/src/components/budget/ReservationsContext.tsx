@@ -8,7 +8,7 @@ import React, {
 import type { ReactNode } from 'react';
 
 import { send } from '@actual-app/core/platform/client/connection';
-import type { CategoryReservationsResult } from '@actual-app/core/server/budget/goal-template';
+import type { CategoryReservationsResult } from '@actual-app/core/server/budget/get-reservations';
 import type { CategoryEntity } from '@actual-app/core/types/models';
 
 import { useFeatureFlag } from '#hooks/useFeatureFlag';

@@ -14,8 +14,6 @@ import { tombstoneOrphanCleanupGroups } from './cleanup-groups';
 import { checkTemplateNotes, storeNoteTemplates } from './template-notes';
 import type { TemplateNotification } from './template-notification';
 
-export type { CategoryReservationsResult } from './get-reservations';
-
 export function distributeRemainder(
   templateContexts: CategoryTemplateContext[],
   availBudget: number,

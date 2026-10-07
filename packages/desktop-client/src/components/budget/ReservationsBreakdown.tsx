@@ -6,7 +6,7 @@ import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
-import type { CategoryReservationsResult } from '@actual-app/core/server/budget/goal-template';
+import type { CategoryReservationsResult } from '@actual-app/core/server/budget/get-reservations';
 
 import { useFormat } from '#hooks/useFormat';
 
