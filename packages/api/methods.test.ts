@@ -379,7 +379,7 @@ describe('API CRUD operations', () => {
     });
 
     await api.updateNote(categoryId, '#template 100 [test-allowance]');
-    // The app stores a note's templates when it saves the note; the API does not.
+    // updateNote does not store templates. Only applying templates does.
     await api.internal?.send('budget/store-note-templates', [categoryId]);
     await api.setBudgetAmount(month, categoryId, 10000);
 
