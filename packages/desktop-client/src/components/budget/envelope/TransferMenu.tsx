@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Form } from 'react-aria-components';
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -53,11 +53,8 @@ export function TransferMenu({
       : categoryGroups;
   }, [originalCategoryGroups, categoryId, showToBeBudgeted]);
 
-  const clamp = useCallback(
-    (value: IntegerAmount) =>
-      maxAmount == null ? value : Math.min(value, Math.max(maxAmount, 0)),
-    [maxAmount],
-  );
+  const clamp = (value: IntegerAmount) =>
+    maxAmount == null ? value : Math.min(value, Math.max(maxAmount, 0));
   const [amount, setAmount] = useState<IntegerAmount>(
     clamp(Math.max(initialAmount ?? 0, 0)),
   );
