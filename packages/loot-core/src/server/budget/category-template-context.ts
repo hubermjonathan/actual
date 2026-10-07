@@ -463,7 +463,9 @@ export class CategoryTemplateContext {
           t.type !== 'limit'
         ) {
           this.templates.push(t);
-          if (t.priority !== null) this.priorities.add(t.priority);
+          if (t.priority !== null && t.type !== 'total') {
+            this.priorities.add(t.priority);
+          }
         } else if (t.directive === 'template' && t.type === 'remainder') {
           this.remainder.push(t);
           this.remainderWeight += t.weight;
@@ -476,22 +478,16 @@ export class CategoryTemplateContext {
     // A `total` line counts every other line in the category first, so it
     // runs at the category's last priority, whatever priority it was written
     // with.
-    const priorityOf = (t: Template): number | null =>
-      'priority' in t && typeof t.priority === 'number' ? t.priority : null;
-    const otherPriorities = this.templates
-      .filter(t => t.type !== 'total')
-      .map(priorityOf)
-      .filter((p): p is number => p !== null);
-    if (otherPriorities.length > 0) {
-      const lastPriority = Math.max(...otherPriorities);
-      this.templates = this.templates.map(t =>
-        t.type === 'total' && (priorityOf(t) ?? 0) < lastPriority
-          ? { ...t, priority: lastPriority }
-          : t,
-      );
-      this.priorities = new Set(
-        this.templates.map(priorityOf).filter((p): p is number => p !== null),
-      );
+    const lastPriority = Math.max(...this.priorities);
+    this.templates = this.templates.map(t =>
+      t.type === 'total' && t.priority < lastPriority
+        ? { ...t, priority: lastPriority }
+        : t,
+    );
+    for (const t of this.templates) {
+      if (t.type === 'total' && t.priority !== null) {
+        this.priorities.add(t.priority);
+      }
     }
 
     this.checkLimit(templates);
@@ -540,17 +536,12 @@ export class CategoryTemplateContext {
       claims.reduce((sum, c) => sum + heldAtMonthStart(c), 0),
     );
 
-    const scheduleTemplates = this.templates.filter(
-      (t): t is ScheduleTemplate => t.type === 'schedule',
+    const scheduleClaims = await getScheduleReservationClaims(
+      this.templates,
+      monthUtils.subMonths(this.month, 1),
+      this.category,
+      this.currency,
     );
-    const scheduleClaims = scheduleTemplates.length
-      ? await getScheduleReservationClaims(
-          scheduleTemplates,
-          monthUtils.subMonths(this.month, 1),
-          this.category,
-          this.currency,
-        )
-      : [];
     const heldForSchedules = Math.round(
       scheduleClaims.reduce((sum, c) => sum + accruedToDate(c), 0),
     );
@@ -1051,7 +1042,7 @@ export class CategoryTemplateContext {
       const totalRate = goals.claims.reduce((sum, c) => sum + c.monthlyRate, 0);
       const perTemplateNeed = new Map<ByTemplate, number>();
       byTemplates.forEach((template, i) => {
-        const rate = goals.claims[i]?.monthlyRate ?? 0;
+        const rate = goals.claims[i].monthlyRate;
         perTemplateNeed.set(
           template,
           rate + (totalRate > 0 ? (goals.shortfall * rate) / totalRate : 0),
