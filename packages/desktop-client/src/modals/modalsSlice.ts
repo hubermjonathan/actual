@@ -514,6 +514,7 @@ export type Modal =
       options: {
         title: string;
         amount: IntegerAmount;
+        maxAmount?: IntegerAmount | null;
         categoryId?: CategoryEntity['id'];
         month: string;
         onSubmit: (

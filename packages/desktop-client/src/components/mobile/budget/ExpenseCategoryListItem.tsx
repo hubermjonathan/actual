@@ -14,7 +14,10 @@ import type { BudgetType } from '@actual-app/core/server/prefs';
 import * as monthUtils from '@actual-app/core/shared/months';
 import type { CategoryEntity } from '@actual-app/core/types/models';
 
-import { useCategoryReservations } from '#components/budget/ReservationsContext';
+import {
+  useCategoryReservations,
+  useReservedTotal,
+} from '#components/budget/ReservationsContext';
 import { useCategoriesById } from '#hooks/useCategories';
 import { useFormat } from '#hooks/useFormat';
 import { useNavigate } from '#hooks/useNavigate';
@@ -265,6 +268,8 @@ export function ExpenseCategoryListItem({
       : trackingBudget.catBalance(category?.id),
   );
 
+  const reserved = useReservedTotal(month, category ? [category.id] : []);
+
   const onTransfer = useCallback(() => {
     if (!category) {
       return;
@@ -278,6 +283,7 @@ export function ExpenseCategoryListItem({
             categoryId: category.id,
             month,
             amount: catBalance || 0,
+            maxAmount: (catBalance || 0) - reserved,
             onSubmit: (amount, toCategoryId) => {
               onBudgetAction(month, 'transfer-category', {
                 amount,
@@ -307,6 +313,7 @@ export function ExpenseCategoryListItem({
     dispatch,
     month,
     catBalance,
+    reserved,
     onBudgetAction,
     balanceMenuModalName,
     showUndoNotification,
