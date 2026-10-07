@@ -23,26 +23,3 @@ export function formatPercentOfTotal(amount: number, total: number): string {
   }
   return `${((amount / total) * 100).toFixed(1)}%`;
 }
-
-/**
- * The share of the month a category takes.
- *
- * `draft` is the amount being typed, or null when nothing is. The total counts
- * the draft in place of the committed amount, so the figure says what the month
- * would look like if you kept the number you are typing.
- */
-export function shareOfBudgeted(
-  committed: number,
-  draft: number | null,
-  total: number,
-): string {
-  const amount = draft ?? committed;
-  return formatPercentOfTotal(amount, total - committed + amount);
-}
-
-export function useShareOfBudgeted(
-  committed: number,
-  draft: number | null,
-): string {
-  return shareOfBudgeted(committed, draft, useTotalBudgeted());
-}

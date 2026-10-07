@@ -50,8 +50,6 @@ export type CalculatorAmountInputProps = {
   keyboardHeader?: ReactNode;
   onEnter?: () => void;
   onChange?: (value: number) => void;
-  // Fires on every keystroke, unlike onChange, which waits for the commit.
-  onChangeValue?: (value: string) => void;
   onFocus?: (event: FocusEvent<HTMLInputElement>) => void;
   onBlur?: (event: FocusEvent<HTMLInputElement>) => void;
   autoFocus?: boolean;
@@ -71,7 +69,6 @@ export const CalculatorAmountInput = memo(function CalculatorAmountInput({
   value,
   style,
   onChange,
-  onChangeValue,
   onFocus,
   onBlur,
   negate = false,
@@ -163,21 +160,13 @@ export const CalculatorAmountInput = memo(function CalculatorAmountInput({
       setIosInitialInteraction(true);
 
       setExpression(text);
-      onChangeValue?.(text);
       const amount = text.trim() === '' ? 0 : evalArithmetic(text);
       if (amount === null) {
         return;
       }
       setLiveValue(negate && isNegative.current ? -amount : amount);
     },
-    [
-      setExpression,
-      setLiveValue,
-      setIosInitialInteraction,
-      negate,
-      isNegative,
-      onChangeValue,
-    ],
+    [setExpression, setLiveValue, setIosInitialInteraction, negate, isNegative],
   );
 
   const valueRef = useRef(value);

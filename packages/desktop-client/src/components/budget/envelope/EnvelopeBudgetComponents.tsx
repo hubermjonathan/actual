@@ -17,7 +17,10 @@ import * as monthUtils from '@actual-app/core/shared/months';
 import { css } from '@emotion/css';
 
 import { BalanceWithCarryover } from '#components/budget/BalanceWithCarryover';
-import { useShareOfBudgeted } from '#components/budget/percentOfBudgeted';
+import {
+  formatPercentOfTotal,
+  useTotalBudgeted,
+} from '#components/budget/percentOfBudgeted';
 import {
   useCategoryReservations,
   useReservedTotal,
@@ -196,12 +199,9 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
   const { t } = useTranslation();
   const format = useFormat();
 
-  // The sheet only moves on commit, so the share follows the input while you
-  // type.
   const budgeted =
     useEnvelopeSheetValue(envelopeBudget.catBudgeted(category.id)) ?? 0;
-  const [typedAmount, setTypedAmount] = useState<number | null>(null);
-  const share = useShareOfBudgeted(budgeted, typedAmount);
+  const share = formatPercentOfTotal(budgeted, useTotalBudgeted());
 
   const budgetMenuTriggerRef = useRef(null);
   const balanceMenuTriggerRef = useRef(null);
@@ -419,12 +419,7 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
             unformatExpr: format.fromEdit,
           }}
           inputProps={{
-            onChange: e => {
-              const parsed = format.fromEdit(e.target.value);
-              setTypedAmount(typeof parsed === 'number' ? parsed : null);
-            },
             onBlur: () => {
-              setTypedAmount(null);
               onEdit(null);
             },
             style: {
