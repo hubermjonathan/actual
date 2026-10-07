@@ -17,6 +17,7 @@ import * as budget from './base';
 import * as cleanupGroupActions from './cleanup-groups';
 import * as cleanupActions from './cleanup-template';
 import { storeNoteCleanups } from './cleanup-template-notes';
+import { getReservations } from './get-reservations';
 import * as goalActions from './goal-template';
 import { sortCategories } from './sort-categories';
 import * as goalNoteActions from './template-notes';
@@ -63,7 +64,7 @@ export type BudgetHandlers = {
   'budget/get-category-automations': typeof goalActions.getTemplatesForCategory;
   'budget/set-category-automations': typeof goalActions.storeTemplates;
   'budget/dry-run-category-template': typeof goalActions.dryRunCategoryTemplate;
-  'budget/get-reservations': typeof goalActions.getReservations;
+  'budget/get-reservations': typeof getReservations;
   'budget/store-note-templates': typeof goalNoteActions.storeNoteTemplates;
   'budget/store-note-cleanups': typeof storeNoteCleanups;
   'budget/render-note-templates': typeof goalNoteActions.unparse;
@@ -171,7 +172,7 @@ app.method(
   'budget/dry-run-category-template',
   goalActions.dryRunCategoryTemplate,
 );
-app.method('budget/get-reservations', goalActions.getReservations);
+app.method('budget/get-reservations', getReservations);
 app.method(
   'budget/store-note-templates',
   mutator(goalNoteActions.storeNoteTemplates),

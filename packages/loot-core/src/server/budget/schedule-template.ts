@@ -13,14 +13,13 @@ import {
   extractScheduleConds,
   getDateWithSkippedWeekend,
   getNextDate,
-  getOccurrenceOnOrAfter,
 } from '#shared/schedules';
 import { amountToInteger } from '#shared/util';
 import type { CategoryEntity, TransactionEntity } from '#types/models';
 import type { ScheduleTemplate, Template } from '#types/models/templates';
 
 import { getSheetValue, isTrackingBudget } from './actions';
-import { heldAtMonthStart } from './reservations';
+import { getOccurrenceOnOrAfter, heldAtMonthStart } from './reservations';
 import type { ReservationClaim } from './reservations';
 
 type ScheduleTemplateTarget = {

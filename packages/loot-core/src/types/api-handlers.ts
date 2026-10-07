@@ -12,7 +12,7 @@ import type {
   APIScheduleEntity,
   APITagEntity,
 } from '#server/api-models';
-import type { CategoryReservationsResult } from '#server/budget/goal-template';
+import type { CategoryReservationsResult } from '#server/budget/get-reservations';
 import type { BudgetFileHandlers } from '#server/budgetfiles/app';
 import type { batchUpdateTransactions } from '#server/transactions';
 import type { QueryState } from '#shared/query';

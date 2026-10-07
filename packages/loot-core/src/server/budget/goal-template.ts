@@ -2,7 +2,6 @@
 import { aqlQuery } from '#server/aql';
 import * as db from '#server/db';
 import { batchMessages } from '#server/sync';
-import { getCurrency } from '#shared/currencies';
 import * as monthUtils from '#shared/months';
 import { q } from '#shared/query';
 import type { CategoryEntity, CategoryGroupEntity } from '#types/models';
@@ -12,11 +11,10 @@ import type { Template } from '#types/models/templates';
 import { getSheetValue, isTrackingBudget, setBudget, setGoal } from './actions';
 import { CategoryTemplateContext } from './category-template-context';
 import { tombstoneOrphanCleanupGroups } from './cleanup-groups';
-import { getByReservationClaims, settleReservations } from './reservations';
-import type { CategoryReservations } from './reservations';
-import { getScheduleReservationClaims } from './schedule-template';
 import { checkTemplateNotes, storeNoteTemplates } from './template-notes';
 import type { TemplateNotification } from './template-notification';
+
+export type { CategoryReservationsResult } from './get-reservations';
 
 export function distributeRemainder(
   templateContexts: CategoryTemplateContext[],
@@ -149,7 +147,7 @@ async function getCategories(): Promise<CategoryEntity[]> {
   return categoryGroups.flatMap(g => g.categories || []).filter(c => !c.hidden);
 }
 
-async function getTemplates(
+export async function getTemplates(
   filter: (category: CategoryEntity) => boolean = () => true,
 ): Promise<Record<CategoryEntity['id'], Template[]>> {
   //retrieves template definitions from the database
@@ -371,81 +369,6 @@ export type DryRunCategoryResult = {
   budgeted: number;
   perTemplate: number[];
 };
-
-export type CategoryReservationsResult = CategoryReservations & {
-  categoryId: CategoryEntity['id'];
-  categoryName: string;
-};
-
-/**
- * Split each category's balance into what is reserved for known future costs
- * and what is genuinely spare to spend.
- *
- * Read-only and derived on every call. Categories with no schedule templates
- * are reported with everything spare, so a caller can render every row
- * from one result rather than special-casing.
- */
-export async function getReservations({
-  month,
-  categoryId,
-}: {
-  month: string;
-  categoryId?: CategoryEntity['id'];
-}): Promise<CategoryReservationsResult[]> {
-  const templates = categoryId
-    ? await getTemplatesForCategory(categoryId)
-    : await getTemplates();
-
-  const { data: categories }: { data: CategoryEntity[] } = await aqlQuery(
-    q('categories')
-      .filter({ ...(categoryId ? { id: categoryId } : {}) })
-      .select('*'),
-  );
-
-  const currencyPref = await aqlQuery(
-    q('preferences').filter({ id: 'defaultCurrencyCode' }).select('*'),
-  );
-  const currency = getCurrency(
-    currencyPref.data.length > 0 ? currencyPref.data[0].value : '',
-  );
-
-  const sheetName = monthUtils.sheetForMonth(month);
-  const results: CategoryReservationsResult[] = [];
-
-  for (const category of categories) {
-    if (category.is_income || category.hidden) continue;
-
-    const balance = await getSheetValue(sheetName, `leftover-${category.id}`);
-    const categoryTemplates = templates[category.id] ?? [];
-
-    const scheduleClaims = await getScheduleReservationClaims(
-      categoryTemplates,
-      month,
-      category,
-      currency,
-    );
-
-    // A repeating `by` target is a claim that has no bill, such as Christmas
-    // or an anniversary. The calendar ends its cycle, not a payment. That is
-    // why it does not need a schedule.
-    const byClaims = getByReservationClaims(
-      categoryTemplates.filter(t => t.type === 'by'),
-      month,
-      category.name,
-      currency.decimalPlaces,
-    );
-
-    const claims = [...scheduleClaims, ...byClaims];
-
-    results.push({
-      categoryId: category.id,
-      categoryName: category.name,
-      ...settleReservations(balance, claims),
-    });
-  }
-
-  return results;
-}
 
 export async function dryRunCategoryTemplate({
   month,
