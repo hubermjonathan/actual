@@ -163,7 +163,7 @@ export function BalanceWithCarryover({
     [getBalanceAmountStyle, isDisabled],
   );
   // Only worth a hover when something actually claims the balance.
-  const showBreakdown = hasReservationDetail(reservations ?? null);
+  const showBreakdown = hasReservationDetail(reservations);
   const GoalStatusDisplay = useCallback(
     (balanceValue, type) => {
       return (
@@ -280,7 +280,7 @@ export function BalanceWithCarryover({
                         />
                       )}
                       <ReservationsBreakdown
-                        reservations={reservations ?? null}
+                        reservations={reservations}
                         style={{ padding: 0 }}
                       />
                     </>
