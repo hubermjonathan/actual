@@ -51,10 +51,7 @@ export function ReservationsProvider({
 }: ReservationsProviderProps) {
   const isGoalTemplatesEnabled = useFeatureFlag('goalTemplatesEnabled');
   const monthsContext = useContext(MonthsContext);
-  const months = useMemo(
-    () => explicitMonths ?? monthsContext?.months ?? [],
-    [explicitMonths, monthsContext?.months],
-  );
+  const months = explicitMonths ?? monthsContext.months;
   const [byMonth, setByMonth] = useState<Map<string, ReservationsByCategory>>(
     new Map(),
   );

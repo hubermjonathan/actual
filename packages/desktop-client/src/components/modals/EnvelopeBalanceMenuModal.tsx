@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import type { CSSProperties } from 'react';
 import { Trans } from 'react-i18next';
 
@@ -45,9 +45,8 @@ export function EnvelopeBalanceMenuModal({
   month,
   ...props
 }: EnvelopeBalanceMenuModalProps) {
-  const months = useMemo(() => [month], [month]);
   return (
-    <ReservationsProvider months={months}>
+    <ReservationsProvider months={[month]}>
       <EnvelopeBalanceMenuModalInner {...props} month={month} />
     </ReservationsProvider>
   );
