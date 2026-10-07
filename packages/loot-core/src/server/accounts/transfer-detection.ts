@@ -14,7 +14,7 @@ export type TransferCandidate = {
   is_child?: boolean | number | null;
 };
 
-const DEFAULT_MAX_DAYS_APART = 5;
+const MAX_DAYS_APART = 5;
 
 function isEligible(transaction: TransferCandidate) {
   return (
@@ -26,14 +26,10 @@ function isEligible(transaction: TransferCandidate) {
   );
 }
 
-function withinWindow(
-  a: TransferCandidate,
-  b: TransferCandidate,
-  maxDaysApart: number,
-) {
+function withinWindow(a: TransferCandidate, b: TransferCandidate) {
   return (
     Math.abs(monthUtils.differenceInCalendarDays(a.date, b.date)) <=
-    maxDaysApart
+    MAX_DAYS_APART
   );
 }
 
@@ -43,7 +39,6 @@ function withinWindow(
 export function findTransferMatch(
   transaction: TransferCandidate,
   nearby: TransferCandidate[],
-  { maxDaysApart = DEFAULT_MAX_DAYS_APART }: { maxDaysApart?: number } = {},
 ): TransferCandidate | null {
   if (!isEligible(transaction)) {
     return null;
@@ -53,7 +48,7 @@ export function findTransferMatch(
     candidate =>
       candidate.id !== transaction.id &&
       isEligible(candidate) &&
-      withinWindow(transaction, candidate, maxDaysApart),
+      withinWindow(transaction, candidate),
   );
 
   const opposite = -transaction.amount;
@@ -84,7 +79,7 @@ export function findTransferMatch(
       candidate =>
         candidate.account === match.account &&
         candidate.amount === transaction.amount &&
-        withinWindow(match, candidate, maxDaysApart),
+        withinWindow(match, candidate),
     )
   ) {
     return null;
@@ -139,12 +134,9 @@ export async function detectTransfers(
   }
 
   const nearby = await getCandidates('t.date >= ? AND t.date <= ?', [
-    db.toDateRepr(monthUtils.subDays(subjects[0].date, DEFAULT_MAX_DAYS_APART)),
+    db.toDateRepr(monthUtils.subDays(subjects[0].date, MAX_DAYS_APART)),
     db.toDateRepr(
-      monthUtils.addDays(
-        subjects[subjects.length - 1].date,
-        DEFAULT_MAX_DAYS_APART,
-      ),
+      monthUtils.addDays(subjects[subjects.length - 1].date, MAX_DAYS_APART),
     ),
   ]);
 

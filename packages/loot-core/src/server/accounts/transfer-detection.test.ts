@@ -29,25 +29,20 @@ describe('findTransferMatch', () => {
 
   // The two banks post a transfer on different days.
   it.each([
-    ['2026-09-05', undefined, true],
-    ['2026-09-20', undefined, false],
-    ['2026-09-11', 2, false],
-  ])(
-    'with the other side on %s and a window of %s, matches: %s',
-    (date, maxDaysApart, matches) => {
-      const outflow = transaction({ id: 'out' });
-      const inflow = transaction({
-        id: 'in',
-        account: 'card',
-        amount: 10000,
-        date,
-      });
+    ['2026-09-05', true],
+    ['2026-09-13', true],
+    ['2026-09-20', false],
+  ])('with the other side on %s, matches: %s', (date, matches) => {
+    const outflow = transaction({ id: 'out' });
+    const inflow = transaction({
+      id: 'in',
+      account: 'card',
+      amount: 10000,
+      date,
+    });
 
-      expect(findTransferMatch(outflow, [inflow], { maxDaysApart })).toBe(
-        matches ? inflow : null,
-      );
-    },
-  );
+    expect(findTransferMatch(outflow, [inflow])).toBe(matches ? inflow : null);
+  });
 
   it('does not match a charge and its refund on the same card', () => {
     // On amount and date alone the refund pairs with either purchase.
