@@ -154,14 +154,12 @@ These are types.
 
 <Method name="getReservations" args={[{ name: 'month', type: 'month' }, { name: 'options', type: '{ categoryId?: id }' }]} returns="Promise<CategoryReservations[]>" />
 
-Divides each category balance into two parts: the money **reserved** for known future costs, and the money that is **spare**. Pass `categoryId` to get one category only.
+Returns one `CategoryReservations` object for each expense category in `month`. Each object divides the category balance into the amount that the claims reserve and the amount that is spare. Pass `categoryId` to return only that category.
 
-Actual calculates these values on each call and does not store them, so they always agree with the current balance. It calculates them from the [budget templates](../experimental/goal-templates.md) on each category. See [Reservations](../experimental/reservations.md) for the meaning of each part.
-
-The result does not include income categories or hidden categories. It does include a category that has no claims. That category holds all of its money in `spare` and has a `status` of `null`, so you can show every row from one result.
+Actual calculates the values from the [budget templates](../experimental/goal-templates.md) of each category on each call. It does not store them. The result leaves out income categories and hidden categories. It includes categories that have no claims. For such a category, `reserved` is 0, `spare` is equal to `balance`, and `status` is `null`. See [Reservations](../experimental/reservations.md) for how claims work.
 
 :::note
-Actual reads the templates from the last copy it stored on the category. The app updates that copy when you edit a template note. If you write a note with [`updateNote`](#updatenote), Actual does not use it until the app stores it.
+Actual reads the templates that it stored on the category the last time templates were applied. If you change a template note with [`updateNote`](#updatenote), the result does not change until templates are applied again.
 :::
 
 #### Category reservations

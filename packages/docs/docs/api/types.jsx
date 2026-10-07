@@ -233,19 +233,30 @@ export const objects = {
   categoryReservations: [
     { name: 'categoryId', type: types.id },
     { name: 'categoryName', type: 'string' },
-    { name: 'balance', type: types.amount },
+    {
+      name: 'balance',
+      type: types.amount,
+      description: (
+        <span>The category balance, with the reserved part included.</span>
+      ),
+    },
     {
       name: 'reserved',
       type: types.amount,
-      description: <span>Owed to a future cost. Should not be spent yet.</span>,
+      description: (
+        <span>
+          The sum of <code>reserved</code> for all claims. The app subtracts it
+          from the balance that it shows.
+        </span>
+      ),
     },
     {
       name: 'spare',
       type: types.amount,
       description: (
         <span>
-          <code>balance - reserved</code>. Nothing claims it. Can be negative
-          when the category is overspent.
+          <code>balance - reserved</code>. Negative when the balance is less
+          than <code>reserved</code>.
         </span>
       ),
     },
@@ -253,7 +264,10 @@ export const objects = {
       name: 'accrued',
       type: types.amount,
       description: (
-        <span>What should be set aside across every claim, held or not.</span>
+        <span>
+          The sum of <code>accrued</code> for all claims. Equal to{' '}
+          <code>reserved</code>.
+        </span>
       ),
     },
     {
@@ -261,28 +275,41 @@ export const objects = {
       type: types.amount,
       description: (
         <span>
-          <code>reserved - balance</code> when the balance cannot cover every
-          claim, otherwise 0.
+          <code>reserved - balance</code> when that is more than 0. Otherwise 0.
         </span>
       ),
     },
     {
       name: 'target',
       type: types.amount,
-      description: <span>Every claim&apos;s full future cost.</span>,
+      description: (
+        <span>
+          The sum of <code>target</code> for all claims.
+        </span>
+      ),
     },
     {
       name: 'status',
       type: 'string',
       description: (
         <span>
-          One of <code>behind</code>, <code>onPace</code>, <code>ahead</code>,{' '}
-          <code>funded</code>, or <code>null</code> when the category has no
-          claims.
+          <code>null</code> when the category has no claims. Otherwise{' '}
+          <code>behind</code> when <code>shortfall</code> is more than 0,{' '}
+          <code>funded</code> when <code>balance</code> is at least{' '}
+          <code>target</code>, <code>ahead</code> when <code>spare</code> is
+          more than 0, and <code>onPace</code> when <code>spare</code> is 0.
         </span>
       ),
     },
-    { name: 'claims', type: 'ReservationClaim[]' },
+    {
+      name: 'claims',
+      type: 'ReservationClaim[]',
+      description: (
+        <span>
+          Sorted by <code>nextDate</code>, then by name.
+        </span>
+      ),
+    },
   ],
 
   reservationClaim: [
@@ -291,30 +318,68 @@ export const objects = {
       type: 'string',
       description: (
         <span>
-          The schedule this claim tracks, or the label of a repeating By
+          The schedule name, or the label of a repeating By template. A By
+          template with no label uses the category name.
+        </span>
+      ),
+    },
+    {
+      name: 'target',
+      type: types.amount,
+      description: (
+        <span>
+          The schedule amount after adjustments, or the amount of the By
           template.
         </span>
       ),
     },
-    { name: 'target', type: types.amount },
     {
       name: 'nextDate',
       type: types.date,
-      description: <span>Claims are settled in this order.</span>,
+      description: (
+        <span>
+          The next due date. For a By template, the first day of its target
+          month.
+        </span>
+      ),
     },
-    { name: 'monthlyRate', type: types.amount },
+    {
+      name: 'monthlyRate',
+      type: 'number',
+      description: (
+        <span>
+          The amount that the claim collects each month, in the same unit as{' '}
+          <code>amount</code>. Not rounded, so it can have a fraction.
+        </span>
+      ),
+    },
     {
       name: 'monthsRemaining',
       type: 'integer',
-      description: <span>0 means it is due this month.</span>,
+      description: (
+        <span>
+          Calendar months from <code>month</code> to <code>nextDate</code>. 0
+          means that the claim is due in <code>month</code>.
+        </span>
+      ),
     },
-    { name: 'accrued', type: types.amount },
+    {
+      name: 'accrued',
+      type: types.amount,
+      description: (
+        <span>
+          <code>target - monthlyRate * monthsRemaining</code>, limited to the
+          range 0 to <code>target</code> and rounded.
+        </span>
+      ),
+    },
     {
       name: 'reserved',
       type: types.amount,
       description: (
         <span>
-          Equal to <code>accrued</code>. A claim always holds its full amount.
+          Equal to <code>accrued</code>. A claim holds this amount even when the
+          balance is smaller.
         </span>
       ),
     },
@@ -323,8 +388,8 @@ export const objects = {
       type: 'bool',
       description: (
         <span>
-          Written <code>[fixed]</code>: the template budgets the same amount
-          each month.
+          <code>true</code> when the schedule template has the{' '}
+          <code>[fixed]</code> flag.
         </span>
       ),
     },
@@ -332,7 +397,13 @@ export const objects = {
       name: 'settledThisMonth',
       type: 'bool',
       description: (
-        <span>The bill was paid this month. The app shows it as spent.</span>
+        <span>
+          <code>true</code> when the schedule was due in <code>month</code> and
+          is paid. A schedule is paid when a transaction in <code>month</code>{' '}
+          is linked to it, or when the schedule has moved past that date. The
+          claim then counts toward the next due date, and the app shows it as
+          spent. Always <code>false</code> for a By template.
+        </span>
       ),
     },
   ],
