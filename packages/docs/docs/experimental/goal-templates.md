@@ -137,16 +137,15 @@ Templates can be given a priority flag to change the order that the templates ge
 - Thousands separators are not supported (e.g., 1,234). You must use 1234.
 - By default, templates do not consider available funds when being applied. Use template priorities to ensure only the amount available to budget is assigned.
 - If you have the "Hide decimal places" setting enabled, templates will round away all decimal amounts. This way, you won't have funds budgeted that you can't see on your budget table.
-- Templates live in the category note. They follow the category, not the money. If you merge or delete a category, its template lines stay with it and are lost.
+- Templates belong to the category. When you delete a category, its template lines are deleted with it.
 
 :::caution
-When you delete a category, Actual moves its transactions and points its rules
-at the category you choose. The template lines stay in the deleted category's
-note, and you lose them. The money then arrives in the new category, and nothing
-budgets it.
+When you delete a category, Actual moves its transactions, its budget, and its
+rules to the category you choose. Actual does not move the template lines. The
+money then arrives in the new category, and no template budgets for it.
 
-Copy the template lines into the note of the new category **before** you delete.
-Then check the result. If two `#template` lines name the same schedule, Actual
+Before you delete a category, copy its template lines into the note of the new
+category. If two `#template` lines in a category name the same schedule, Actual
 counts that schedule twice.
 :::
 
@@ -221,29 +220,30 @@ Below is examples of these different variations of simple templates.
 
 #### Labels
 
-A simple template can say what the amount is for. The label is a note only. It
-does not change the budgeted amount.
+A label in square brackets at the end of a simple template names the amount.
+The label does not change the budgeted amount.
 
 | Syntax                       | Budgeted Amount |
 | ---------------------------- | :-------------: |
 | `#template 1000 [groceries]` |     $ 1000      |
 
-Use a label when a category holds more than one amount. Each amount then has a
-name, and you do not need a comment line. They work on a
-[repeating By template](#repeated-savings) too, where the label also names the
-claim in [Reservations](./reservations.md).
+Use labels when a category has more than one template line, so that each line
+has a name. A [Total](#total-type) template and a [By](#by-type) template can
+also have a label. On a repeating By template, the label names the claim in
+[Reservations](./reservations.md).
 
 ### Total Type
 
-A total template budgets a category **to** an amount, counting every other line in
-the category first. It adds the amount less what the other lines budget.
+A Total template makes the budgeted amount of the category equal to a total.
+It budgets the total less the amount that the other template lines in the
+category budget.
 
-| Syntax                             |            Budgeted Amount             |
-| ---------------------------------- | :------------------------------------: |
-| `#template total 1000 [fun money]` | $ 1000, less what the other lines take |
+| Syntax                             |             Budgeted Amount              |
+| ---------------------------------- | :--------------------------------------: |
+| `#template total 1000 [fun money]` | $ 1000, less what the other lines budget |
 
-Use it when a category holds a fixed monthly amount and some bills, and the
-whole category should stay at one number:
+Use it when a category has a monthly amount and some bills, and the category
+must get the same total each month:
 
 ```
 #template total 1000 [fun money]
@@ -251,17 +251,19 @@ whole category should stay at one number:
 #template schedule Phone Case
 ```
 
-With the two schedules at $ 22.11 and $ 21.57, the total line adds $ 956.32 and the
-category gets $ 1000. If a schedule's price changes, the total line follows it
-without an edit.
+If the two schedules budget $ 22.11 and $ 21.57, the total line budgets
+$ 956.32, and the category gets $ 1000. If the amount of a schedule changes,
+the total line changes with it. You do not edit the template.
 
-- The total line always runs after the other lines in the category, whatever its
-  priority.
-- If the other lines already cost more than the total, they keep their money: the
-  total line adds nothing, and applying templates shows a warning.
-- `#template up to 1000` is different. It refills the category's **balance** to
-  $ 1000, so it budgets less when money is left from last month. A total does not
-  look at the balance.
+- The total line runs after the other template lines in the category, whatever
+  its priority. A remainder line runs after the total line, so the total does
+  not include it.
+- If the other lines budget more than the total, the total line budgets $ 0,
+  and Actual shows a warning when you apply templates. The other lines keep
+  their amounts.
+- A Total template does not read the category balance. `#template up to 1000`
+  is different. It fills the **balance** up to $ 1000, so it budgets less when
+  money is left from last month.
 
 ### By Type
 
@@ -302,17 +304,23 @@ In that case use the following variation:
 | `#template 500 by 2025-03 repeat every year` |    $ 166.66     | Assuming starting in January 2025 |
 | `#template 500 by 2025-03 repeat every year` |     $ 41.66     | All months after March 2025       |
 
-A repeating By template is also a [reservation](./reservations.md). The money is
-owed to a known future cost, so Actual holds it back from the balance you can
-spend and does not count it as spare. It can carry a label, which names it in
-the breakdown:
+When every By template in a category repeats, Actual budgets them in a
+different way from the table above. Each template budgets the same amount each
+month: its amount divided by the number of months in its cycle. For
+`#template 500 by 2025-03 repeat every year`, that is $ 41.67. If the balance at
+the start of the month is less than the templates should hold by then, Actual
+adds the difference in that month. If one By template in the category does not
+repeat, all By templates in the category use the calculation in the table.
+
+A repeating By template also makes a claim in
+[Reservations](./reservations.md). Actual takes the money that it holds out of
+the balance that you can spend. A label names the claim:
 
 | Syntax                                                   |
 | -------------------------------------------------------- |
 | `#template 750 by 2026-12 repeat every year [christmas]` |
 
-A By template that does not repeat is not a reservation. It has no cycle. After
-its month passes, Actual cannot say how much you should hold by now.
+A By template that does not repeat makes no claim, because it has no cycle.
 
 #### By Spend
 
@@ -442,9 +450,9 @@ Below is an example of the syntax for a $ 100 per month schedule called "Interne
 The function of the schedule template is very similar to the By template, but you don't need to adjust both a schedule and a template individually.
 You can adjust the schedule in the schedule editor and the template will stay up to date automatically.
 
-Money that builds up for a schedule some months away stays in the category
+Money saved for a schedule that is due in a later month stays in the category
 balance, where it looks like money you can spend.
-[Reservations](./reservations.md) divide that balance so that it does not.
+[Reservations](./reservations.md) show that money as reserved.
 
 :::warning
 
@@ -467,46 +475,47 @@ Below is an example of using the "Full" flag assuming a once-per-year schedule f
 
 #### Fixed Flag
 
-By default, a Schedule template reads the category balance. It then budgets only
-the amount that the next schedules still need. The amount changes each month. It
-can be $ 0 when the balance already pays for the next few bills.
+By default, a Schedule template reads the category balance, so the amount it
+budgets changes from month to month. It can be $ 0 when the balance already
+pays for the next few bills.
 
-The "Fixed" flag budgets the same amount each month. That amount is the schedule
-amount divided by its interval. The balance does not change it. Below is an
-example for a $ 1,200 yearly schedule called "Taxes".
+The "Fixed" flag budgets the same amount each month: the schedule amount
+divided by the number of months between payments. The balance does not change
+it. Below is an example for a $ 1,200 yearly schedule called "Taxes".
 
 | Syntax                             | Budgeted Amount |                     Note                      |
 | ---------------------------------- | :-------------: | :-------------------------------------------: |
 | `#template schedule Taxes`         |     varies      | Depends on the balance and on other schedules |
 | `#template schedule Taxes [fixed]` |      $ 100      |            The same in every month            |
 
-Use the flag when you want the same cost each month. Also use it when you think
-of each schedule as saving at its own rate, and not as sharing one pot.
+Use the flag when you want the same cost each month, or when you want each
+schedule to save at its own rate.
 
-##### Why the default varies
+- A line can have the `[fixed]` flag or an adjustment, but not both.
+- The flag has no effect in a tracking budget, on a `full` schedule, or on a
+  schedule that repeats every month or more often. Actual already budgets the
+  full amount of those schedules in the month they are due.
+- A fixed schedule continues to budget its amount after it has all of its
+  money.
 
-The default treats the category as one shared pot. Each month it reads the
-schedules in due-date order. It counts the balance that is already there against
-the **full** amount of each schedule. It then budgets only the part that the
-balance does not pay for.
+##### Why the Default Varies
 
-The default uses the flat rate, which is the amount divided by the interval,
-only when the balance pays for every schedule in the category in full.
+By default, Actual treats the schedules in a category as one shared pot. Each
+month, it takes the schedules in due-date order and counts the balance against
+the full amount of each one. For each schedule that the balance does not pay
+for, it divides the missing amount across the months until the due date. When
+the balance pays for every schedule in full, it budgets the amount divided by
+the interval instead.
 
-A category with several irregular bills rarely reaches that point. The purpose
-of the category is to hold money that is not yet complete. The shared pot rule
-therefore applies in almost every month, and the amount changes as you pay bills
-and the balance moves.
+A category with several bills that are due months apart seldom holds all of
+their money at one time. So the shared pot calculation applies in almost every
+month, and the amount changes as you pay bills and the balance moves.
 
-Actual keeps a fixed schedule out of that pot. It budgets the monthly amount of
-the fixed schedule separately. It also takes out of the pot the money that the
-fixed schedule should hold at the start of the month, at its flat rate, rounded
-to the cent. Without this, the other schedules would count money that is already
-promised, and they would budget too little.
-
-:::note
-A fixed schedule continues to add money after it has all of its money.
-:::
+Actual keeps a fixed schedule out of the shared pot. It budgets the monthly
+amount of the fixed schedule separately. It also takes out of the pot the
+money that the fixed schedule held at the start of the month, rounded to the
+cent. If Actual did not do this, the other schedules would count that money as
+their own and budget too little.
 
 #### Adjustments
 
