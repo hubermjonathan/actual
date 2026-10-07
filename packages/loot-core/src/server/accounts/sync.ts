@@ -695,12 +695,7 @@ export async function reconcileTransactions(
           existing.raw_synced_data ?? trans.raw_synced_data ?? null,
       };
 
-      // A pending charge often settles for a different amount (a tip, a
-      // released hold). Take the bank's amount, and the payload that carries
-      // it, so the stored copy does not hide the change. The payload is only
-      // replaced on a real change: some providers rewrite it on every sync.
-      // A split's children must add up to its total, so a new amount on a
-      // parent is left alone rather than divided by guesswork.
+      // Some providers rewrite raw_synced_data on every sync.
       const amountChanged =
         trans.amount != null && trans.amount !== existing.amount;
       if (amountChanged && existing.is_parent) {
@@ -803,9 +798,6 @@ export async function reconcileTransactions(
     await createNewPayees(payeesToCreate, [...added, ...updated]);
     await batchUpdateTransactions({ added, updated });
 
-    // Both halves of a transfer between two synced accounts import
-    // independently, as two unrelated transactions. Link the ones that are
-    // unambiguous.
     if (await shouldDetectTransfers()) {
       await detectTransfers(added.map(trans => trans.id));
     }

@@ -60,8 +60,7 @@ async function createScheduleList(
         : 'SELECT id, name, completed FROM schedules WHERE TRIM(name) = ? AND tombstone = 0',
       [template.scheduleId ?? template.name],
     );
-    // Deleting a schedule leaves its template line in the note, so the lookup
-    // can find nothing. Report it and carry on, as a past schedule does.
+    // Deleting a schedule leaves its template line in the note.
     if (!schedule) {
       errors.push(
         `Schedule ${template.name ?? template.scheduleId} does not exist.`,
@@ -328,12 +327,7 @@ function getSinkingTotal(t: ScheduleTemplateTarget[]) {
   return total;
 }
 
-/**
- * A transaction linked to the schedule, dated in the budget month no more than
- * a week before the occurrence - the signal `getStatus` uses to call a
- * schedule paid. The week keeps out last month's bill paid late: Internet's
- * 9/30 bill linked on 10/02 must not mark the 10/30 bill paid.
- */
+// The same signal `getStatus` uses to call a schedule paid.
 async function hasLinkedPayment(
   scheduleId: string,
   occurrence: string,
@@ -352,10 +346,6 @@ async function hasLinkedPayment(
   return !!linked;
 }
 
-/**
- * The stored `next_date` is past the occurrence: the schedule advanced, which
- * only a linked payment does, even one dated last month.
- */
 async function hasAdvancedPast(
   scheduleId: string,
   occurrence: string,
@@ -366,17 +356,6 @@ async function hasAdvancedPast(
   return data[0]?.next_date != null && data[0].next_date > occurrence;
 }
 
-/**
- * Build the reservation claims a category's schedule templates imply.
- *
- * This uses `createScheduleList` and `getMonthlyBaseContribution`. The rate a
- * claim collects at is therefore the same rate the budget adds each month. The
- * two cannot move apart.
- *
- * Claims funded in full in their due month (`#template schedule full X`, and
- * anything the engine treats that way) accrue all-or-nothing rather than pro
- * rata, which their rate of `target` per month expresses directly.
- */
 export async function getScheduleReservationClaims(
   template_lines: Template[],
   current_month: string,
@@ -393,27 +372,12 @@ export async function getScheduleReservationClaims(
     currency,
   );
 
-  // A claim needs two answers, and only one of them is about payment.
-  //
-  // - **When is the cost due?** From the recurrence rule, read as a calendar.
-  //   The schedule's stored `next_date` moves only when a transaction links to
-  //   it, so a failed link used to freeze the claim: it reserved the whole cost
-  //   in every later month and never cycled. The calendar cannot freeze.
-  // - **Was this occurrence already paid?** From a payment signal. A claim paid
-  //   earlier in the month must stop reserving against a balance the bill has
-  //   already taken, and read as spent rather than as 0.00.
-  //
-  // createScheduleList already drops completed schedules.
   const monthStart = monthUtils.firstDayOfMonth(current_month);
   const monthEnd = monthUtils.lastDayOfMonth(current_month);
   const claims: ReservationClaim[] = [];
   for (const c of t) {
     const { dateConditions, next_date_string: ruleOccurrence } = c;
-    // Advancing a schedule rewrites its rule's `start` to the next
-    // occurrence, which erases the one just paid: Rent paid on 10/01 has a
-    // rule that starts 11/01. Recover it from the calendar, but only trust it
-    // with a linked payment - a schedule that simply starts later has the
-    // same shape and nothing in the month.
+    // Advancing a schedule rewrites its rule's `start`.
     const earlier = getOccurrenceOnOrAfter(dateConditions, monthStart);
     const paidEarlier =
       !!earlier &&
@@ -513,15 +477,10 @@ export async function runSchedule(
     .filter(c => !isPayMonthOf(c))
     .sort((a, b) => a.next_date_string.localeCompare(b.next_date_string));
 
-  // A `[fixed]` claim adds the same amount each month. The category balance
-  // does not change it. We keep these claims out of the shared pool. We keep
-  // out both their monthly amount and the money they have already saved. The
-  // other claims must not count that money.
   const t_fixed = t_allSinking.filter(c => c.template.fixed);
   const t_sinking = t_allSinking.filter(c => !c.template.fixed);
   const fixedContribution = getSinkingBaseContributionTotal(t_fixed);
-  // Whole cents: the pool is subtracted from a budget amount, which must be
-  // an integer.
+  // Budget amounts must be whole cents.
   const fixedHeld = Math.round(
     t_fixed.reduce(
       (sum, c) =>

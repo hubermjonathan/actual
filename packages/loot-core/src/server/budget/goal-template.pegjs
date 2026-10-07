@@ -50,7 +50,6 @@ repeat 'repeat interval'
   / 'year'i { return { annual: true }}
   / years: positive _ 'years'i { return { annual: true, repeat: +years }}
 
-// Names what an amount is for, e.g. `#template 1000 [groceries]`.
 label = _ '[' text:$([^\]\r\n]+) ']' { return text.trim() }
 
 limit =  _? upTo _ amount: amount _ 'per week starting'i _ start:date _? hold:hold?

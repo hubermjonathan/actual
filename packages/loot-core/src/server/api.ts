@@ -465,13 +465,6 @@ handlers['api/budget-month'] = async function ({ month }) {
   };
 };
 
-/**
- * A category's balance split into what it owes and what is spare.
- *
- * Derived on every call and never stored. The internal handler trusts its
- * `month`; validating it here keeps the public method consistent with the rest
- * of the API, which rejects a month outside the budget.
- */
 handlers['api/reservations'] = async function ({ month, categoryId }) {
   checkFileOpen();
   await validateMonth(month);

@@ -160,7 +160,6 @@ export class CategoryTemplateContext {
     if (!this.priorities.has(priority)) return 0;
     if (this.limitMet) return 0;
 
-    // `total` goes last in its priority: it budgets what the others leave.
     const t = this.templates
       .filter(t => t.directive === 'template' && t.priority === priority)
       .sort((a, b) => Number(a.type === 'total') - Number(b.type === 'total'));
@@ -429,9 +428,7 @@ export class CategoryTemplateContext {
   private limitHold = false;
   readonly previouslyBudgeted: number = 0;
   private currency: Currency;
-  /** Problems worth telling the user about, which do not stop the run. */
   readonly warnings: string[] = [];
-  // Set when every `by` template repeats. See prepareRepeatingGoals.
   private repeatingGoals: {
     claims: ReservationClaim[];
     shortfall: number;
@@ -475,9 +472,6 @@ export class CategoryTemplateContext {
       });
     }
 
-    // A `total` line counts every other line in the category first, so it
-    // runs at the category's last priority, whatever priority it was written
-    // with.
     const lastPriority = Math.max(...this.priorities);
     this.templates = this.templates.map(t =>
       t.type === 'total' && t.priority < lastPriority
@@ -495,26 +489,8 @@ export class CategoryTemplateContext {
     this.checkGoal();
   }
 
-  /**
-   * Budget repeating `by` goals the way the reservations engine holds them.
-   *
-   * A goal such as `#template 750 by 2026-11 repeat every year` is a claim:
-   * the reservations engine expects it to collect a flat `750 / 12` every
-   * month. `runBy` instead pools every `by` line, subtracts the **whole**
-   * category balance and spreads the rest to the nearest date. In a category
-   * that also holds bills, that balance is mostly the bills' money, so the
-   * goals were under-budgeted every month and the category read as behind -
-   * 45.24 in `Wants (Reserved)` for October 2026.
-   *
-   * So when every `by` line repeats, each gets its monthly rate, plus whatever
-   * the goals are short at the start of the month. Short means: what the goals
-   * should hold now, less the balance left after the schedule claims take
-   * theirs, as the reservations engine counted them at the end of last month.
-   * On pace that is nothing, and the goals cost the same every month.
-   *
-   * A one-off `by` line has no rate to collect at, so a category with one keeps
-   * upstream's calculation.
-   */
+  // `runBy` nets the whole balance, bills' money included, against the goals;
+  // the reservations engine expects each repeating goal to collect its rate.
   async prepareRepeatingGoals() {
     const byTemplates = this.templates.filter(
       (t): t is ByTemplate => t.type === 'by',
@@ -777,13 +753,6 @@ export class CategoryTemplateContext {
     }
   }
 
-  /**
-   * The rest of `amount` once the category's other lines have budgeted.
-   *
-   * Never negative: when the other lines already cost more than the total,
-   * they keep their money - a bill is not underfunded to honour a total - and
-   * the overrun is reported instead.
-   */
   static runTotal(
     template: TotalTemplate,
     templateContext: CategoryTemplateContext,

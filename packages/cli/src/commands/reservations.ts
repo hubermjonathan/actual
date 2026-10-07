@@ -6,11 +6,6 @@ import { printOutput } from '#output';
 
 type Reservations = Awaited<ReturnType<typeof api.getReservations>>;
 
-/**
- * `table` and `csv` are one value per cell, so the nested `claims` and
- * claims are dropped from the summary and given their own subcommand.
- * `json` always carries the whole payload.
- */
 function summaryRows(reservations: Reservations) {
   return reservations.map(r => ({
     categoryName: r.categoryName,
@@ -41,8 +36,6 @@ export function registerReservationsCommand(program: Command) {
     .command('reservations')
     .description('Show what a category balance owes and what is spare');
 
-  // Both subcommands read the same data and differ only in the rows they
-  // print, so they share one registration.
   const addSubcommand = (
     name: string,
     description: string,
