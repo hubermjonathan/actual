@@ -379,9 +379,9 @@ export async function dryRunCategoryTemplate({
   categoryId: CategoryEntity['id'];
   templates: Template[];
 }): Promise<DryRunCategoryResult> {
-  // The projection shows how much these templates ask for. It does not apply
-  // the priority limit. A future month has an empty To Budget, so the templates
-  // still show their intended amount and not 0.
+  // The projection answers "how much do these templates demand" — it
+  // skips the priority clamp so future months (where To Budget is empty)
+  // still show the templates' intended amount instead of 0.
   const { data: categoryData }: { data: CategoryEntity[] } = await aqlQuery(
     q('categories').filter({ id: categoryId }).select('*'),
   );
