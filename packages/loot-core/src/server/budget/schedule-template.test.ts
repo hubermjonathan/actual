@@ -1,4 +1,6 @@
+import { aqlQuery } from '#server/aql';
 import * as db from '#server/db';
+import { fromDateRepr } from '#server/models';
 import { Rule } from '#server/rules';
 import { getRuleForSchedule } from '#server/schedules/app';
 import type { Currency } from '#shared/currencies';
@@ -8,6 +10,7 @@ import type { ScheduleTemplate } from '#types/models/templates';
 import { getSheetValue, isTrackingBudget } from './actions';
 import { getScheduleReservationClaims, runSchedule } from './schedule-template';
 
+vi.mock('#server/aql');
 vi.mock('#server/db');
 vi.mock('./actions');
 vi.mock('#server/schedules/app', async () => {
@@ -913,13 +916,15 @@ describe('getScheduleReservationClaims', () => {
     storedNextDate: number | null,
     linkedDate: number | null = null,
   ) {
+    vi.mocked(aqlQuery).mockResolvedValue({
+      data:
+        storedNextDate == null
+          ? []
+          : [{ next_date: fromDateRepr(storedNextDate) }],
+      dependencies: [],
+    });
     vi.mocked(db.first).mockImplementation(
       async (query: string, params?: unknown[]) => {
-        if (query.includes('schedules_next_date')) {
-          return storedNextDate == null
-            ? undefined
-            : { next_date: storedNextDate };
-        }
         if (query.includes('v_transactions')) {
           const [, from, to] = params as number[];
           return linkedDate != null && linkedDate >= from && linkedDate <= to

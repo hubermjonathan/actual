@@ -1,12 +1,14 @@
 // @ts-strict-ignore
 
+import { aqlQuery } from '#server/aql';
 import * as db from '#server/db';
-import { fromDateRepr, toDateRepr } from '#server/models';
+import { toDateRepr } from '#server/models';
 import { collectFormulasFromActions } from '#server/rules/balanceOfFormula';
 import { getRuleForSchedule } from '#server/schedules/app';
 import { prefetchBalanceOfForTransaction } from '#server/transactions/transaction-rules';
 import type { Currency } from '#shared/currencies';
 import * as monthUtils from '#shared/months';
+import { q } from '#shared/query';
 import {
   extractScheduleConds,
   getDateWithSkippedWeekend,
@@ -27,6 +29,7 @@ type ScheduleTemplateTarget = {
   name: string;
   target: number;
   next_date_string: string;
+  dateConditions: ReturnType<typeof extractScheduleConds>['date'];
   target_interval: number;
   target_frequency: string | undefined;
   num_months: number;
@@ -164,6 +167,7 @@ async function createScheduleList(
         scheduleId: sid,
         target,
         next_date_string,
+        dateConditions,
         target_interval,
         target_frequency,
         num_months,
@@ -377,21 +381,10 @@ async function hasAdvancedPast(
   scheduleId: string,
   occurrence: string,
 ): Promise<boolean> {
-  // `local_next_date` only holds the answer while its timestamp still matches
-  // `base_next_date_ts`. Once the schedule's date is changed, the base date is
-  // the one that counts. Same rule as `v_schedules.next_date` in
-  // aql/schema/index.ts.
-  const stored = await db.first<{ next_date: number | null }>(
-    `SELECT CASE
-       WHEN local_next_date_ts = base_next_date_ts THEN local_next_date
-       ELSE base_next_date
-     END AS next_date
-     FROM schedules_next_date WHERE schedule_id = ?`,
-    [scheduleId],
+  const { data } = await aqlQuery(
+    q('schedules').filter({ id: scheduleId }).select('next_date'),
   );
-  return (
-    stored?.next_date != null && fromDateRepr(stored.next_date) > occurrence
-  );
+  return data[0]?.next_date != null && data[0].next_date > occurrence;
 }
 
 /**
@@ -436,15 +429,7 @@ export async function getScheduleReservationClaims(
   const monthEnd = monthUtils.lastDayOfMonth(current_month);
   const claims: ReservationClaim[] = [];
   for (const c of t) {
-    const rule = await getRuleForSchedule(c.scheduleId);
-    const { date: dateConditions } = extractScheduleConds(
-      rule.serialize().conditions,
-    );
-    // The occurrence the rule gives for the month. Its `start` never runs
-    // behind its stored date, so a frozen schedule still lands here.
-    const ruleOccurrence =
-      getNextDate(dateConditions, monthUtils.parseDate(monthStart)) ??
-      c.next_date_string;
+    const { dateConditions, next_date_string: ruleOccurrence } = c;
     // Advancing a schedule rewrites its rule's `start` to the next
     // occurrence, which erases the one just paid: Rent paid on 10/01 has a
     // rule that starts 11/01. Recover it from the calendar, but only trust it
@@ -453,11 +438,10 @@ export async function getScheduleReservationClaims(
     const earlier = getOccurrenceOnOrAfter(dateConditions, monthStart);
     const paidEarlier =
       !!earlier &&
-      !!ruleOccurrence &&
       earlier < ruleOccurrence &&
       (await hasLinkedPayment(c.scheduleId, earlier, monthStart, monthEnd));
 
-    let occurrence: string | null;
+    let occurrence: string;
     let paid: boolean;
     let nextDate: string;
     if (paidEarlier) {
@@ -467,21 +451,18 @@ export async function getScheduleReservationClaims(
     } else {
       occurrence = ruleOccurrence;
       paid =
-        !!occurrence &&
-        ((await hasLinkedPayment(
+        (await hasLinkedPayment(
           c.scheduleId,
           occurrence,
           monthStart,
           monthEnd,
-        )) ||
-          (await hasAdvancedPast(c.scheduleId, occurrence)));
-      nextDate =
-        paid && occurrence
-          ? (getOccurrenceOnOrAfter(
-              dateConditions,
-              monthUtils.addDays(occurrence, 1),
-            ) ?? occurrence)
-          : occurrence;
+        )) || (await hasAdvancedPast(c.scheduleId, occurrence));
+      nextDate = paid
+        ? (getOccurrenceOnOrAfter(
+            dateConditions,
+            monthUtils.addDays(occurrence, 1),
+          ) ?? occurrence)
+        : occurrence;
     }
     const monthsRemaining = monthUtils.differenceInCalendarMonths(
       nextDate,
@@ -489,7 +470,6 @@ export async function getScheduleReservationClaims(
     );
     const settledThisMonth =
       paid &&
-      !!occurrence &&
       monthUtils.getMonth(occurrence) === monthUtils.getMonth(current_month);
 
     claims.push({
