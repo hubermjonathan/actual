@@ -51,8 +51,11 @@ export function ReservationsBreakdown({
           (a, b) =>
             b.accrued - a.accrued || a.nextDate.localeCompare(b.nextDate),
         )
-        .map(c => (
-          <View key={c.name} style={{ paddingLeft: 12, opacity: 0.75 }}>
+        .map((c, i) => (
+          <View
+            key={`${c.name}-${c.nextDate}-${i}`}
+            style={{ paddingLeft: 12, opacity: 0.75 }}
+          >
             <AlignedText
               left={
                 c.settledThisMonth

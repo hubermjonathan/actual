@@ -27,6 +27,7 @@ export function TransferModal({
   categoryId,
   month,
   amount: initialAmount,
+  maxAmount = null,
   showToBeBudgeted,
   onSubmit,
 }: TransferModalProps) {
@@ -50,7 +51,9 @@ export function TransferModal({
     return [filteredCategoryGroups, filteredCategories];
   }, [categoryId, originalCategoryGroups, showToBeBudgeted]);
 
-  const [amount, setAmount] = useState<IntegerAmount>(initialAmount);
+  const clamp = (value: IntegerAmount) =>
+    maxAmount == null ? value : Math.min(value, Math.max(maxAmount, 0));
+  const [amount, setAmount] = useState<IntegerAmount>(clamp(initialAmount));
   const [toCategoryId, setToCategoryId] = useState<string | null>(null);
   const dispatch = useDispatch();
 
@@ -102,7 +105,7 @@ export function TransferModal({
                   inputStyle={{
                     height: styles.mobileMinHeight,
                   }}
-                  onUpdate={setAmount}
+                  onUpdate={value => setAmount(clamp(value))}
                   onEnter={() => {
                     if (!toCategoryId) {
                       openCategoryModal();
