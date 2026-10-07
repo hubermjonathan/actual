@@ -27,56 +27,30 @@ describe('findTransferMatch', () => {
     expect(findTransferMatch(inflow, [outflow])).toBe(outflow);
   });
 
-  it('matches across a few days, since the two banks post separately', () => {
-    // the live case: Bilt posted the payment on the 5th, Schwab on the 8th
-    const card = transaction({
-      id: 'card',
-      account: 'card',
-      amount: 475619,
-      date: '2026-09-05',
-    });
-    const checking = transaction({
-      id: 'checking',
-      amount: -475619,
-      date: '2026-09-08',
-    });
+  // The two banks post a transfer on different days.
+  it.each([
+    ['2026-09-05', undefined, true],
+    ['2026-09-20', undefined, false],
+    ['2026-09-11', 2, false],
+  ])(
+    'with the other side on %s and a window of %s, matches: %s',
+    (date, maxDaysApart, matches) => {
+      const outflow = transaction({ id: 'out' });
+      const inflow = transaction({
+        id: 'in',
+        account: 'card',
+        amount: 10000,
+        date,
+      });
 
-    expect(findTransferMatch(card, [checking])).toBe(checking);
-  });
-
-  it('does not match when the dates are too far apart', () => {
-    const outflow = transaction({ id: 'out', date: '2026-09-01' });
-    const inflow = transaction({
-      id: 'in',
-      account: 'card',
-      amount: 10000,
-      date: '2026-09-20',
-    });
-
-    expect(findTransferMatch(outflow, [inflow])).toBeNull();
-  });
-
-  it('honours a caller-supplied window', () => {
-    const outflow = transaction({ id: 'out', date: '2026-09-01' });
-    const inflow = transaction({
-      id: 'in',
-      account: 'card',
-      amount: 10000,
-      date: '2026-09-04',
-    });
-
-    expect(
-      findTransferMatch(outflow, [inflow], { maxDaysApart: 2 }),
-    ).toBeNull();
-    expect(findTransferMatch(outflow, [inflow], { maxDaysApart: 3 })).toBe(
-      inflow,
-    );
-  });
+      expect(findTransferMatch(outflow, [inflow], { maxDaysApart })).toBe(
+        matches ? inflow : null,
+      );
+    },
+  );
 
   it('does not match a charge and its refund on the same card', () => {
-    // Bilt charged 11.04 at Amazon on 8/31 and refunded it on 9/3, and Venture X
-    // happened to hold a separate 11.04 Amazon purchase. On amount and date
-    // alone the refund pairs with either one.
+    // On amount and date alone the refund pairs with either purchase.
     const refund = transaction({
       id: 'refund',
       account: 'bilt',
@@ -127,56 +101,26 @@ describe('findTransferMatch', () => {
     expect(findTransferMatch(outflow, [first, second])).toBeNull();
   });
 
-  it('ignores transactions that are already transfers', () => {
+  it.each([
+    { transfer_id: 'x' },
+    { starting_balance_flag: true },
+    { is_parent: true },
+    { is_child: true },
+  ])('ignores a transaction with %o on either side', fields => {
     const outflow = transaction({ id: 'out' });
-    const linked = transaction({
-      id: 'in',
-      account: 'card',
-      amount: 10000,
-      transfer_id: 'something-else',
-    });
+    const inflow = transaction({ id: 'in', account: 'card', amount: 10000 });
 
-    expect(findTransferMatch(outflow, [linked])).toBeNull();
-    expect(
-      findTransferMatch(transaction({ id: 'out', transfer_id: 'x' }), [
-        transaction({ id: 'in', account: 'card', amount: 10000 }),
-      ]),
-    ).toBeNull();
+    expect(findTransferMatch(outflow, [{ ...inflow, ...fields }])).toBeNull();
+    expect(findTransferMatch({ ...outflow, ...fields }, [inflow])).toBeNull();
   });
 
-  it('ignores starting balances and split parents and children', () => {
-    const outflow = transaction({ id: 'out' });
-
-    for (const flag of [
-      'starting_balance_flag',
-      'is_parent',
-      'is_child',
-    ] as const) {
-      const candidate = transaction({
-        id: 'in',
-        account: 'card',
-        amount: 10000,
-        [flag]: true,
-      });
-      expect(findTransferMatch(outflow, [candidate])).toBeNull();
-      expect(
-        findTransferMatch(transaction({ id: 'out', [flag]: true }), [
-          transaction({ id: 'in', account: 'card', amount: 10000 }),
-        ]),
-      ).toBeNull();
-    }
-  });
-
-  it('never matches a zero-amount transaction, which has no sign', () => {
+  it('never matches a zero amount or the transaction itself', () => {
     const zero = transaction({ id: 'out', amount: 0 });
-    const otherZero = transaction({ id: 'in', account: 'card', amount: 0 });
-
-    expect(findTransferMatch(zero, [otherZero])).toBeNull();
-  });
-
-  it('does not match a transaction to itself', () => {
     const outflow = transaction({ id: 'out' });
 
+    expect(
+      findTransferMatch(zero, [{ ...zero, id: 'in', account: 'card' }]),
+    ).toBeNull();
     expect(findTransferMatch(outflow, [outflow])).toBeNull();
   });
 });

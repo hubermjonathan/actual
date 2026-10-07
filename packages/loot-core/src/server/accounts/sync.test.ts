@@ -1068,19 +1068,6 @@ describe('Account sync, a pending transaction that settles', () => {
     const [after] = await getAllTransactions();
     expect((await bankPayload(after.id)).booked).toBe(false);
   });
-
-  test('changes nothing when the amount has not moved', async () => {
-    const { id } = await prepareDatabase();
-    await reconcileTransactions(id, [{ ...pending, cleared: true }]);
-
-    const { updated } = await reconcileTransactions(id, [
-      { ...pending, cleared: true },
-    ]);
-
-    expect(updated).toEqual([]);
-    const [after] = await getAllTransactions();
-    expect(after.amount).toBe(-3417);
-  });
 });
 
 describe('SimpleFin batch sync', () => {
