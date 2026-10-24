@@ -157,26 +157,6 @@ actual budgets hold-next-month --month 2026-03 --amount 10000
 actual budgets reset-hold --month 2026-03
 ```
 
-### Reservations
-
-Shows the reserved and spare parts of each category balance. See
-[Reservations](../experimental/reservations.md) for what the parts mean.
-
-```bash
-# Balance, reserved, spare, and status for each category
-actual reservations list 2026-09
-
-# One category only (also works with claims)
-actual reservations list 2026-09 --category <id>
-
-# One row for each claim, with its target and the amount it holds now
-actual reservations claims 2026-09
-```
-
-In `table` and `csv` format, `list` shows one row for each category, without
-the claims. In `json` format, `list` returns the full
-[`getReservations`](./reference.md#getreservations) result, claims included.
-
 ### Categories
 
 ```bash
