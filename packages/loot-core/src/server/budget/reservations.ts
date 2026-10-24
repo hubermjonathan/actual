@@ -17,7 +17,6 @@ export type ReservationClaim = {
 };
 
 export type SettledClaim = ReservationClaim & {
-  accrued: number;
   reserved: number;
 };
 
@@ -27,7 +26,6 @@ export type CategoryReservations = {
   balance: number;
   reserved: number;
   spare: number;
-  accrued: number;
   shortfall: number;
   target: number;
   status: ReservationStatus | null;
@@ -66,18 +64,16 @@ export function settleReservations(
     return byDate !== 0 ? byDate : a.name.localeCompare(b.name);
   });
 
-  const exact = ordered.map(claim => {
-    const accrued = accruedToDate(claim);
-    return { claim, accrued, reserved: accrued };
-  });
+  const exact = ordered.map(claim => ({
+    claim,
+    reserved: accruedToDate(claim),
+  }));
 
   const reserved = Math.round(exact.reduce((sum, c) => sum + c.reserved, 0));
-  const accrued = Math.round(exact.reduce((sum, c) => sum + c.accrued, 0));
   const target = exact.reduce((sum, c) => sum + c.claim.target, 0);
 
   const settled: SettledClaim[] = exact.map(c => ({
     ...c.claim,
-    accrued: Math.round(c.accrued),
     reserved: Math.round(c.reserved),
   }));
 
@@ -101,7 +97,6 @@ export function settleReservations(
     balance,
     reserved,
     spare,
-    accrued,
     shortfall,
     target,
     status,

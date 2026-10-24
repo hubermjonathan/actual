@@ -14,7 +14,6 @@ const AMOUNT_FIELDS = new Set([
   'carryover',
   'reserved',
   'spare',
-  'accrued',
   'target',
 ]);
 
