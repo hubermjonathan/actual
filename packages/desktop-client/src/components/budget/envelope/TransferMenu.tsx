@@ -9,6 +9,7 @@ import type { IntegerAmount } from '@actual-app/core/shared/util';
 import type { CategoryEntity } from '@actual-app/core/types/models';
 
 import { CategoryAutocomplete } from '#components/autocomplete/CategoryAutocomplete';
+import { capAtSpare } from '#components/budget/ReservationsContext';
 import {
   addToBeBudgetedGroup,
   removeCategoriesFromGroups,
@@ -49,10 +50,8 @@ export function TransferMenu({
       : categoryGroups;
   }, [originalCategoryGroups, categoryId, showToBeBudgeted]);
 
-  const clamp = (value: IntegerAmount) =>
-    maxAmount == null ? value : Math.min(value, Math.max(maxAmount, 0));
   const [amount, setAmount] = useState<IntegerAmount>(
-    clamp(Math.max(initialAmount ?? 0, 0)),
+    capAtSpare(Math.max(initialAmount ?? 0, 0), maxAmount),
   );
   const [toCategoryId, setToCategoryId] = useState<string | null>(null);
 
@@ -78,7 +77,7 @@ export function TransferMenu({
           <InitialFocus>
             <FinancialInput
               value={amount}
-              onUpdate={value => setAmount(clamp(value))}
+              onUpdate={value => setAmount(capAtSpare(value, maxAmount))}
             />
           </InitialFocus>
         </View>

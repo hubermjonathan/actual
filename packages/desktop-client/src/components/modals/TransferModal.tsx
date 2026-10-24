@@ -7,6 +7,7 @@ import { styles } from '@actual-app/components/styles';
 import { View } from '@actual-app/components/view';
 import type { IntegerAmount } from '@actual-app/core/shared/util';
 
+import { capAtSpare } from '#components/budget/ReservationsContext';
 import {
   addToBeBudgetedGroup,
   removeCategoriesFromGroups,
@@ -51,9 +52,9 @@ export function TransferModal({
     return [filteredCategoryGroups, filteredCategories];
   }, [categoryId, originalCategoryGroups, showToBeBudgeted]);
 
-  const clamp = (value: IntegerAmount) =>
-    maxAmount == null ? value : Math.min(value, Math.max(maxAmount, 0));
-  const [amount, setAmount] = useState<IntegerAmount>(clamp(initialAmount));
+  const [amount, setAmount] = useState<IntegerAmount>(
+    capAtSpare(initialAmount, maxAmount),
+  );
   const [toCategoryId, setToCategoryId] = useState<string | null>(null);
   const dispatch = useDispatch();
 
@@ -105,7 +106,7 @@ export function TransferModal({
                   inputStyle={{
                     height: styles.mobileMinHeight,
                   }}
-                  onUpdate={value => setAmount(clamp(value))}
+                  onUpdate={value => setAmount(capAtSpare(value, maxAmount))}
                   onEnter={() => {
                     if (!toCategoryId) {
                       openCategoryModal();
