@@ -8,9 +8,6 @@ import APIList from './APIList';
 <APIList title="Budgets" sections={[
 "getBudgetMonths",
 "getBudgetMonth",
-"getReservations",
-"Category reservations",
-"Reservation claim",
 "setBudgetAmount",
 "setBudgetCarryover",
 "holdBudgetForNextMonth",
@@ -149,26 +146,6 @@ These are types.
 #### `getBudgetMonth`
 
 <Method name="getBudgetMonth" args={[{ name: 'month', type: 'month' }]} returns="Promise<Budget>" />
-
-#### `getReservations`
-
-<Method name="getReservations" args={[{ name: 'month', type: 'month' }, { name: 'options', type: '{ categoryId?: id }' }]} returns="Promise<CategoryReservations[]>" />
-
-Returns one `CategoryReservations` object for each expense category in `month`. Each object divides the category balance into the amount that the claims reserve and the amount that is spare. Pass `categoryId` to return only that category.
-
-Actual calculates the values from the [budget templates](../experimental/goal-templates.md) of each category on each call. It does not store them. The result leaves out income categories and hidden categories. It includes categories that have no claims. For such a category, `reserved` is 0, `spare` is equal to `balance`, and `status` is `null`. See [Reservations](../experimental/reservations.md) for how claims work.
-
-:::note
-Actual reads the templates that it stored on the category the last time templates were applied. If you change a template note with [`updateNote`](#updatenote), the result does not change until templates are applied again.
-:::
-
-#### Category reservations
-
-<StructType fields={objects.categoryReservations} />
-
-#### Reservation claim
-
-<StructType fields={objects.reservationClaim} />
 
 #### `setBudgetAmount`
 

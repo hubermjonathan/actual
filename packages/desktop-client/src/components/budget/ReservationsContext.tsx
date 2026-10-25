@@ -6,6 +6,7 @@ import React, {
   useState,
 } from 'react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { listen, send } from '@actual-app/core/platform/client/connection';
 import type { CategoryReservationsResult } from '@actual-app/core/server/budget/get-reservations';
@@ -14,6 +15,8 @@ import type { CategoryEntity } from '@actual-app/core/types/models';
 import { debounce } from 'es-toolkit/compat';
 
 import { useFeatureFlag } from '#hooks/useFeatureFlag';
+import { addNotification } from '#notifications/notificationsSlice';
+import { useDispatch } from '#redux';
 
 import { MonthsContext } from './MonthsContext';
 
@@ -35,6 +38,8 @@ export function ReservationsProvider({
   children,
   months: explicitMonths,
 }: ReservationsProviderProps) {
+  const { t } = useTranslation();
+  const dispatch = useDispatch();
   const isGoalTemplatesEnabled = useFeatureFlag('goalTemplatesEnabled');
   const monthsContext = useContext(MonthsContext);
   const months = explicitMonths ?? monthsContext.months;
@@ -55,23 +60,42 @@ export function ReservationsProvider({
       const id = ++requestId;
       void Promise.all(
         months.map(month =>
-          send('budget/get-reservations', { month })
-            .then(
-              rows => [month, rows] as [string, CategoryReservationsResult[]],
-            )
-            .catch(() => [month, []] as [string, CategoryReservationsResult[]]),
-        ),
-      ).then(entries => {
-        if (!mounted || id !== requestId) return;
-        setByMonth(
-          new Map(
-            entries.map(([month, rows]) => [
-              month,
-              new Map(rows.map(r => [r.categoryId, r])),
-            ]),
+          send('budget/get-reservations', { month }).then(
+            rows => [month, rows] as [string, CategoryReservationsResult[]],
           ),
-        );
-      });
+        ),
+      ).then(
+        entries => {
+          if (!mounted || id !== requestId) return;
+          setByMonth(
+            new Map(
+              entries.map(([month, rows]) => [
+                month,
+                new Map(rows.map(r => [r.categoryId, r])),
+              ]),
+            ),
+          );
+        },
+        error => {
+          if (!mounted || id !== requestId) return;
+          dispatch(
+            addNotification({
+              notification: {
+                type: 'error',
+                id: 'reservations-failed',
+                title: t('Reservations did not load'),
+                message: t(
+                  'Balances include reserved money until they load: {{error}}',
+                  {
+                    error:
+                      error instanceof Error ? error.message : String(error),
+                  },
+                ),
+              },
+            }),
+          );
+        },
+      );
     };
     load();
 
@@ -113,6 +137,14 @@ export function useCategoryReservations(
     () => byMonth.get(month)?.get(categoryId) ?? null,
     [byMonth, month, categoryId],
   );
+}
+
+// A transfer may move only what the reservations leave.
+export function capAtSpare(
+  amount: number,
+  maxAmount: number | null | undefined,
+): number {
+  return maxAmount == null ? amount : Math.min(amount, Math.max(maxAmount, 0));
 }
 
 export function useReservedTotal(

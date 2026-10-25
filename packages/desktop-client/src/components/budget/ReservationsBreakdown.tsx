@@ -49,7 +49,7 @@ export function ReservationsBreakdown({
       {[...reservations.claims]
         .sort(
           (a, b) =>
-            b.accrued - a.accrued || a.nextDate.localeCompare(b.nextDate),
+            b.reserved - a.reserved || a.nextDate.localeCompare(b.nextDate),
         )
         .map((c, i) => (
           <View

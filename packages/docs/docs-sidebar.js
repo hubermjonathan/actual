@@ -210,7 +210,6 @@ const sidebars = {
           items: [
             'experimental/budget-automation',
             'experimental/goal-templates',
-            'experimental/reservations',
             'experimental/monthly-cleanup',
             'experimental/rule-templating',
             'experimental/formulas',

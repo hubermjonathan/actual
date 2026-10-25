@@ -23,7 +23,6 @@ function claimRows(reservations: Reservations) {
       name: c.name,
       nextDate: c.nextDate,
       target: c.target,
-      accrued: c.accrued,
       reserved: c.reserved,
       settledThisMonth: c.settledThisMonth,
       fixed: c.fixed,

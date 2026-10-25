@@ -94,7 +94,7 @@ The status line compares the balance with the claims:
 
 Reservations do not change the budgeted amount. The templates set that amount.
 If a category always shows a shortfall, see the
-[Fixed Flag](./goal-templates.md#fixed-flag).
+[Fixed flag](./reservations-reference.md#fixed-flag).
 
 ## Why Transfers Are Limited
 
@@ -114,6 +114,6 @@ when you change a budgeted amount, or through the API.
 
 ## Read Reservations From a Script
 
-The API method [`getReservations`](../api/reference.md#getreservations) returns
-the same values for a month. The CLI command
-[`actual reservations`](../api/cli.md#reservations) prints them.
+The API method `getReservations` returns the same values for a month, and the
+CLI command `actual reservations` prints them. See the
+[Reservations reference](./reservations-reference.md).

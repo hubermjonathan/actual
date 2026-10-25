@@ -430,7 +430,7 @@ export class CategoryTemplateContext {
   private currency: Currency;
   readonly warnings: string[] = [];
   private repeatingGoals: {
-    claims: ReservationClaim[];
+    claims: Map<ByTemplate, ReservationClaim>;
     shortfall: number;
   } | null = null;
 
@@ -502,14 +502,19 @@ export class CategoryTemplateContext {
       return;
     }
 
-    const claims = getByReservationClaims(
-      byTemplates,
-      this.month,
-      this.category.name,
-      this.currency.decimalPlaces,
+    const claims = new Map(
+      byTemplates.map(t => [
+        t,
+        getByReservationClaims(
+          [t],
+          this.month,
+          this.category.name,
+          this.currency.decimalPlaces,
+        )[0],
+      ]),
     );
     const neededAtStart = Math.round(
-      claims.reduce((sum, c) => sum + heldAtMonthStart(c), 0),
+      [...claims.values()].reduce((sum, c) => sum + heldAtMonthStart(c), 0),
     );
 
     const scheduleClaims = await getScheduleReservationClaims(
@@ -1008,10 +1013,12 @@ export class CategoryTemplateContext {
 
     const goals = templateContext.repeatingGoals;
     if (goals) {
-      const totalRate = goals.claims.reduce((sum, c) => sum + c.monthlyRate, 0);
+      const totalRate = [...goals.claims.values()].reduce(
+        (sum, c) => sum + c.monthlyRate,
+        0,
+      );
       const perTemplateNeed = new Map<ByTemplate, number>();
-      byTemplates.forEach((template, i) => {
-        const rate = goals.claims[i].monthlyRate;
+      goals.claims.forEach(({ monthlyRate: rate }, template) => {
         perTemplateNeed.set(
           template,
           rate + (totalRate > 0 ? (goals.shortfall * rate) / totalRate : 0),

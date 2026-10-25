@@ -85,8 +85,8 @@ describe('settleReservations', () => {
     ];
     const r = settleReservations(1000000, claims);
 
-    expect(r.claims.reduce((s, c) => s + c.accrued, 0)).toBe(9047);
-    expect(r.accrued).toBe(9048);
+    expect(r.claims.reduce((s, c) => s + c.reserved, 0)).toBe(9047);
+    expect(r.reserved).toBe(9048);
   });
 
   it('holds nothing for a claim settled this month', () => {

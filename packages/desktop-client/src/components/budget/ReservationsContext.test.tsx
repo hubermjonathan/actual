@@ -1,10 +1,13 @@
 import React from 'react';
+import type { ReactNode } from 'react';
 
 import {
   initServer,
   serverPush,
 } from '@actual-app/core/platform/client/connection';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+
+import { createTestAppStore, TestProviders } from '#mocks';
 
 import { ReservationsProvider, useReservedTotal } from './ReservationsContext';
 
@@ -23,9 +26,15 @@ function Reserved() {
 
 describe('ReservationsProvider', () => {
   let reserved: number;
+  let store: ReturnType<typeof createTestAppStore>;
+
+  function wrapper({ children }: { children: ReactNode }) {
+    return <TestProviders store={store}>{children}</TestProviders>;
+  }
 
   beforeEach(() => {
     reserved = 100;
+    store = createTestAppStore();
     initServer({
       'budget/get-reservations': async () => [
         {
@@ -34,7 +43,6 @@ describe('ReservationsProvider', () => {
           balance: 0,
           reserved,
           spare: 0,
-          accrued: 0,
           shortfall: 0,
           target: 0,
           status: null,
@@ -49,6 +57,7 @@ describe('ReservationsProvider', () => {
       <ReservationsProvider months={[month]}>
         <Reserved />
       </ReservationsProvider>,
+      { wrapper },
     );
     await screen.findByText('reserved 100');
 
@@ -63,6 +72,7 @@ describe('ReservationsProvider', () => {
       <ReservationsProvider months={[month]}>
         <Reserved />
       </ReservationsProvider>,
+      { wrapper },
     );
     await screen.findByText('reserved 100');
 
@@ -72,5 +82,29 @@ describe('ReservationsProvider', () => {
     ]);
 
     await screen.findByText('reserved 300');
+  });
+
+  it('says so when reservations fail to load', async () => {
+    initServer({
+      'budget/get-reservations': async () => {
+        throw new Error('no such schedule');
+      },
+    });
+    render(
+      <ReservationsProvider months={[month]}>
+        <Reserved />
+      </ReservationsProvider>,
+      { wrapper },
+    );
+
+    await waitFor(() =>
+      expect(store.getState().notifications.notifications).toEqual([
+        expect.objectContaining({
+          id: 'reservations-failed',
+          type: 'error',
+          message: expect.stringContaining('no such schedule'),
+        }),
+      ]),
+    );
   });
 });
