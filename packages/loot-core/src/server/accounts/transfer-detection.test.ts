@@ -70,6 +70,37 @@ describe('findTransferMatch', () => {
     ).toBeNull();
   });
 
+  it('never links a row that has a category', () => {
+    const charge = transaction({ id: 'charge', account: 'card' });
+    const deposit = transaction({
+      id: 'deposit',
+      amount: 10000,
+      category: 'savings',
+    });
+
+    expect(findTransferMatch(charge, [deposit])).toBeNull();
+    expect(findTransferMatch(deposit, [charge])).toBeNull();
+  });
+
+  it('still counts a charge with a category against its refund', () => {
+    const refund = transaction({ id: 'refund', account: 'bilt', amount: 1104 });
+    const ownCharge = transaction({
+      id: 'own-charge',
+      account: 'bilt',
+      amount: -1104,
+      category: 'groceries',
+    });
+    const otherCardPurchase = transaction({
+      id: 'other-purchase',
+      account: 'venture-x',
+      amount: -1104,
+    });
+
+    expect(
+      findTransferMatch(refund, [ownCharge, otherCardPurchase]),
+    ).toBeNull();
+  });
+
   it('does not match when the counterpart has its own refund', () => {
     const outflow = transaction({ id: 'out', amount: -1104 });
     const inflow = transaction({
@@ -157,30 +188,42 @@ describe('detectTransfers', () => {
       [id],
     );
 
-  it('links both sides, names the transfer payees and clears the categories', async () => {
+  it('links both sides and names the transfer payees', async () => {
+    await account('checking');
+    await account('card');
+    await row('out', 'checking', -475619, '2026-09-08');
+    await row('in', 'card', 475619, '2026-09-05');
+
+    await expect(detectTransfers(['out'])).resolves.toEqual([['out', 'in']]);
+
+    expect(await read('out')).toMatchObject({
+      transfer_id: 'in',
+      payee: 'transfer-card',
+    });
+    expect(await read('in')).toMatchObject({
+      transfer_id: 'out',
+      payee: 'transfer-checking',
+    });
+  });
+
+  it('leaves a row that a rule categorized alone', async () => {
     await db.insertCategoryGroup({ id: 'group1', name: 'group1' });
-    const category = await db.insertCategory({
-      name: 'misc',
+    const savings = await db.insertCategory({
+      name: 'savings',
       cat_group: 'group1',
     });
     await account('checking');
     await account('card');
-    await row('out', 'checking', -475619, '2026-09-08', { category });
-    await row('in', 'card', 475619, '2026-09-05', { category });
-
-    await expect(detectTransfers(['out'])).resolves.toEqual([['out', 'in']]);
-
-    const out = await read('out');
-    const inflow = await read('in');
-    expect(out).toMatchObject({
-      transfer_id: 'in',
-      payee: 'transfer-card',
-      category: null,
+    await row('charge', 'card', -12899, '2026-11-10');
+    await row('deposit', 'checking', 12899, '2026-11-11', {
+      category: savings,
     });
-    expect(inflow).toMatchObject({
-      transfer_id: 'out',
-      payee: 'transfer-checking',
-      category: null,
+
+    await expect(detectTransfers(['charge', 'deposit'])).resolves.toEqual([]);
+    expect(await read('charge')).toMatchObject({ transfer_id: null });
+    expect(await read('deposit')).toMatchObject({
+      transfer_id: null,
+      category: savings,
     });
   });
 

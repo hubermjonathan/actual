@@ -8,6 +8,7 @@ export type TransferCandidate = {
   account: string;
   amount: number;
   date: string;
+  category?: string | null;
   transfer_id?: string | null;
   starting_balance_flag?: boolean | number | null;
   is_parent?: boolean | number | null;
@@ -40,7 +41,7 @@ export function findTransferMatch(
   transaction: TransferCandidate,
   nearby: TransferCandidate[],
 ): TransferCandidate | null {
-  if (!isEligible(transaction)) {
+  if (!isEligible(transaction) || transaction.category) {
     return null;
   }
 
@@ -63,11 +64,13 @@ export function findTransferMatch(
     return null;
   }
 
-  const candidates = inWindow.filter(candidate =>
-    validForTransfer(
-      transaction as unknown as TransactionEntity,
-      candidate as unknown as TransactionEntity,
-    ),
+  const candidates = inWindow.filter(
+    candidate =>
+      !candidate.category &&
+      validForTransfer(
+        transaction as unknown as TransactionEntity,
+        candidate as unknown as TransactionEntity,
+      ),
   );
   if (candidates.length !== 1) {
     return null;
@@ -104,7 +107,7 @@ async function getCandidates(
   params: Array<string | number>,
 ): Promise<TransferCandidate[]> {
   const rows = await db.all<db.DbViewTransaction>(
-    `SELECT t.id, t.account, t.amount, t.date, t.transfer_id,
+    `SELECT t.id, t.account, t.amount, t.date, t.category, t.transfer_id,
             t.starting_balance_flag, t.is_parent, t.is_child
      FROM v_transactions t
      JOIN accounts a ON a.id = t.account
